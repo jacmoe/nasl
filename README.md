@@ -1,2 +1,2 @@
 # nasl
-Not A Sixteen-bit Library
+Nasl is Not A Sixteen-bit Library
