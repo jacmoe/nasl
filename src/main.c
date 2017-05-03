@@ -70,20 +70,20 @@ int main()
     // Create a sub_buffer
     Buffer* sub_buffer = nasl_buffer_get_subbuffer(buffer, 50, 50, 700, 400);
     nasl_buffer_clear(sub_buffer, c64_black);
-    int palx = 0;
-    for (int j = 0; j < sub_buffer->height; j++)
+///*
+    int offset = 0;
+    for (int palx = 0; palx < 16; palx++)
     {
-        for (int i = 0; i < sub_buffer->width; i++)
+        for (int j = offset; j < offset + 25; j++)
         {
-            if(j % 25 == 0)
+            for (int i = 0; i < sub_buffer->width; i++)
             {
-                palx++;
+                nasl_buffer_set_pixel(sub_buffer, i, j, palette[palx]);
             }
-            if(palx > 16) palx = 0;
-            nasl_buffer_set_pixel(sub_buffer, i, j, palette[palx]);
         }
+        offset += 25;
     }
-
+    //*/
     // Blit sub_buffer onto the main buffer
     nasl_buffer_blit(buffer, sub_buffer, 50, 50);
 

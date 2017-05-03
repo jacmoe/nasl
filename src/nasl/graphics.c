@@ -175,7 +175,6 @@ uint32_t nasl_graphics_render(Buffer *buf)
             buf->pixels                 // pixels
             );
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    glfwSwapBuffers(window);
 
     return get_time() - start;
 }

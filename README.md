@@ -35,9 +35,15 @@ Nasl is Not A Sixteen-bit Library
     ccmake ..
     make -j4
 
+## Screenshots
+
+![Commodore 64 Palette][palette]
+
+
 
 
 [stbimage]: https://github.com/nothings/stb "stb library"
 [mybasic]: https://github.com/paladin-t/my_basic "MY-BASIC"
 [nuklear]: https://github.com/vurtun/nuklear "Nuklear"
 [glfw]: http://www.glfw.org/ "GLFW"
+[palette]: https://github.com/jacmoe/nasl/raw/master/pallete.jpg "Commodore 64 Palette"
