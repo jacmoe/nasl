@@ -46,4 +46,4 @@ Nasl is Not A Sixteen-bit Library
 [mybasic]: https://github.com/paladin-t/my_basic "MY-BASIC"
 [nuklear]: https://github.com/vurtun/nuklear "Nuklear"
 [glfw]: http://www.glfw.org/ "GLFW"
-[palette]: https://github.com/jacmoe/nasl/raw/master/pallete.jpg "Commodore 64 Palette"
+[palette]: https://github.com/jacmoe/nasl/raw/master/palette.jpg "Commodore 64 Palette"
