@@ -25,21 +25,21 @@ static int shutdown();
 int main()
 {
     // C64 Color Palette
-    uint32_t c64_black =        0       | 0     << 8 |  0   << 16;
+    uint32_t c64_black =          0     |   0   << 8 |    0 << 16;
     uint32_t c64_white =        255     | 255   << 8 |  255 << 16;
-    int32_t c64_red =          136     | 0     << 8 |  0   << 16;
+    int32_t c64_red =           136     |   0   << 8 |    0 << 16;
     uint32_t c64_cyan =         170     | 255   << 8 |  238 << 16;
-    uint32_t c64_violet =       204     | 68    << 8 |  204 << 16;
-    uint32_t c64_green =        0       | 204   << 8 |  85  << 16;
-    uint32_t c64_blue =         0       | 0     << 8 |  170 << 16;
+    uint32_t c64_violet =       204     |  68   << 8 |  204 << 16;
+    uint32_t c64_green =          0     | 204   << 8 |   85 << 16;
+    uint32_t c64_blue =           0     |   0   << 8 |  170 << 16;
     uint32_t c64_yellow =       238     | 238   << 8 |  119 << 16;
-    uint32_t c64_orange =       221     | 136   << 8 |  85  << 16;
-    uint32_t c64_brown =        102     | 68    << 8 |  0   << 16;
+    uint32_t c64_orange =       221     | 136   << 8 |   85 << 16;
+    uint32_t c64_brown =        102     |  68   << 8 |    0 << 16;
     uint32_t c64_lightred =     255     | 119   << 8 |  119 << 16;
-    uint32_t c64_grey1 =        51      | 51    << 8 |  51  << 16;
+    uint32_t c64_grey1 =         51     |  51   << 8 |   51 << 16;
     uint32_t c64_grey2 =        119     | 119   << 8 |  119 << 16;
     uint32_t c64_lightgreen =   170     | 255   << 8 |  102 << 16;
-    uint32_t c64_lightblue =    0       | 136   << 8 |  255 << 16;
+    uint32_t c64_lightblue =      0     | 136   << 8 |  255 << 16;
     uint32_t c64_grey3 =        187     | 187   << 8 |  187 << 16;
 
     uint32_t palette[16];
@@ -70,7 +70,8 @@ int main()
     // Create a sub_buffer
     Buffer* sub_buffer = nasl_buffer_get_subbuffer(buffer, 50, 50, 700, 400);
     nasl_buffer_clear(sub_buffer, c64_black);
-///*
+
+    // Draw the C64 palette to the buffer
     int offset = 0;
     for (int palx = 0; palx < 16; palx++)
     {
@@ -83,7 +84,6 @@ int main()
         }
         offset += 25;
     }
-    //*/
     // Blit sub_buffer onto the main buffer
     nasl_buffer_blit(buffer, sub_buffer, 50, 50);
 
