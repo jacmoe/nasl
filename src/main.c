@@ -16,7 +16,13 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
-void main()
+#include "nasl/script.h"
+
+int main()
 {
-    printf("Hello, NASL NASL!\n");
+    nasl_script_init();
+    nasl_script_run("assets/scripts/init.bas");
+    nasl_script_shutdown();
+
+    char c = getchar();
 }
