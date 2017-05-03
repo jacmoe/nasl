@@ -25,18 +25,41 @@ int main()
 {
     init();
 
-    Buffer* buffer = buffer_create(800,600);
-    buffer_clear(buffer, GREY);
-    buffer_pixel_set(buffer, 10,10, BUILDRGB(255,255,255));
+    // Create main buffer
+    Buffer* buffer = nasl_buffer_create(800,600);
+    // Clear main buffer to a light grey colour
+    nasl_buffer_clear(buffer, LIGHTGREY);
 
+    // Create a sub_buffer
+    Buffer* sub_buffer = nasl_buffer_get_subbuffer(buffer, 50, 50, 700, 400);
+    // Paint every fourth pixel green
+    for (int j = 0; j < sub_buffer->height; j++)
+    {
+        for (int i = 0; i < sub_buffer->width; i++)
+        {
+            if((i % 4 == 0) && (j % 4 == 0) )
+                nasl_buffer_set_pixel(sub_buffer, i, j, GREEN);
+        }
+    }
+
+    // Blit sub_buffer onto the main buffer
+    nasl_buffer_blit(buffer, sub_buffer, 50, 50);
+
+
+    // Main loop
     while(nasl_graphics_running())
     {
+        // Event polling
         nasl_graphics_poll_events();
+        // Render the main buffer
         nasl_graphics_render(buffer);
+        // Swap buffers
         nasl_graphics_present();
     }
 
-    buffer_delete(buffer);
+    // Destroy the buffers we created
+    nasl_buffer_destroy(sub_buffer);
+    nasl_buffer_destroy(buffer);
 
     shutdown();
 }

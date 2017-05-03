@@ -14,23 +14,23 @@ typedef struct Buffer
 } Buffer;
 
 // Returns a Buffer of the given width and height.
-Buffer *buffer_create(int width, int height);
+Buffer *nasl_buffer_create(int width, int height);
 
 // Free a Buffer
-void buffer_delete(Buffer *buf);
+void nasl_buffer_destroy(Buffer *buf);
 
 // Fills a Buffer with color
-void buffer_clear(Buffer *b, uint32_t color);
+void nasl_buffer_clear(Buffer *b, uint32_t color);
 
 // Returns a rectangular sub-buffer of buf starting at pixel (x,y) and with
 // the given width and height.
-Buffer *buffer_get_subbuffer(Buffer *buf, int x, int y, int width, int height);
+Buffer *nasl_buffer_get_subbuffer(Buffer *buf, int x, int y, int width, int height);
 
 // Copies src to dest starting at (x,y) pixel of dest.
-void buffer_blit(Buffer *dest, Buffer *src, int x, int y);
+void nasl_buffer_blit(Buffer *dest, Buffer *src, int x, int y);
 
 // Sets pixel (x,y) of b to color.
-static inline void buffer_pixel_set(Buffer *b, int x, int y, uint32_t color)
+static inline void nasl_buffer_set_pixel(Buffer *b, int x, int y, uint32_t color)
 {
 #ifndef NDEBUG
     if (!(x >= 0 && x < b->width && y >= 0 && y < b->height))
@@ -43,6 +43,6 @@ static inline void buffer_pixel_set(Buffer *b, int x, int y, uint32_t color)
 }
 
 // Returns the color of pixel (x,y) of b.
-uint32_t buffer_pixel_get(Buffer *b, int x, int y);
+uint32_t nasl_buffer_get_pixel(Buffer *b, int x, int y);
 
 #endif /* NASLBUFFER_H */
