@@ -3,7 +3,7 @@
 **
 ** For the latest info, see https://github.com/paladin-t/my_basic/
 **
-** Copyright (C) 2011 - 2016 Wang Renxin
+** Copyright (C) 2011 - 2017 Wang Renxin
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a copy of
 ** this software and associated documentation files (the "Software"), to deal in
@@ -62,24 +62,28 @@ extern "C" {
 #	define MB_CP_UNKNOWN
 #endif /* Compiler dependent macro */
 
-#if defined _WIN32 || defined _WIN64
+#if defined _WIN64
 #	define MB_OS_WIN
+#	define MB_OS_WIN64
+#elif defined _WIN32
+#	define MB_OS_WIN
+#	define MB_OS_WIN32
 #elif defined __APPLE__
 #	include <TargetConditionals.h>
 #	define MB_OS_APPLE
-#	ifdef TARGET_OS_IPHONE
+#	if defined TARGET_OS_IPHONE && TARGET_OS_IPHONE == 1
 #		define MB_OS_IOS
-#	elif defined TARGET_IPHONE_SIMULATOR
+#	elif defined TARGET_IPHONE_SIMULATOR && TARGET_IPHONE_SIMULATOR == 1
 #		define MB_OS_IOS_SIM
-#	elif defined TARGET_OS_MAC
+#	elif defined TARGET_OS_MAC && TARGET_OS_MAC == 1
 #		define MB_OS_MAC
 #	endif
-#elif defined __unix__
-#	define MB_OS_UNIX
-#elif defined __linux__
-#	define MB_OS_LINUX
 #elif defined __ANDROID__
 #	define MB_OS_ANDROID
+#elif defined __linux__
+#	define MB_OS_LINUX
+#elif defined __unix__
+#	define MB_OS_UNIX
 #else
 #	define MB_OS_UNKNOWN
 #endif /* OS dependent macro */
@@ -87,6 +91,14 @@ extern "C" {
 #ifndef MBAPI
 #	define MBAPI
 #endif /* MBAPI */
+
+#ifndef MBIMPL
+#	define MBIMPL
+#endif /* MBIMPL */
+
+#ifndef MBCONST
+#	define MBCONST
+#endif /* MBCONST */
 
 #ifndef MB_SIMPLE_ARRAY
 #	define MB_SIMPLE_ARRAY
@@ -106,6 +118,12 @@ extern "C" {
 
 #ifndef MB_ENABLE_USERTYPE_REF
 #	define MB_ENABLE_USERTYPE_REF
+#endif /* MB_ENABLE_USERTYPE_REF */
+
+#ifdef MB_ENABLE_USERTYPE_REF
+#	ifndef MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF
+#		define MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF
+#	endif /* MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF */
 #endif /* MB_ENABLE_USERTYPE_REF */
 
 #ifndef MB_ENABLE_CLASS
@@ -168,7 +186,7 @@ extern "C" {
 
 #ifndef __cplusplus
 #	ifndef true
-#		define true (!0)
+#		define true (1)
 #	endif /* true */
 #	ifndef false
 #		define false (0)
@@ -176,7 +194,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 #ifndef bool_t
-#	define bool_t int
+#	define bool_t unsigned char
 #endif /* bool_t */
 #ifndef int_t
 #	define int_t int
@@ -385,6 +403,7 @@ typedef enum mb_error_e {
 	SE_RN_LABEL_NOT_EXISTS,
 	SE_RN_NO_RETURN_POINT,
 	SE_RN_COLON_EXPECTED,
+	SE_RN_COMMA_EXPECTED,
 	SE_RN_COMMA_OR_SEMICOLON_EXPECTED,
 	SE_RN_ARRAY_IDENTIFIER_EXPECTED,
 	SE_RN_OPEN_BRACKET_EXPECTED,
@@ -399,6 +418,7 @@ typedef enum mb_error_e {
 	SE_RN_NUMBER_EXPECTED,
 	SE_RN_INTEGER_EXPECTED,
 	SE_RN_ELSE_EXPECTED,
+	SE_RN_ENDIF_EXPECTED,
 	SE_RN_TO_EXPECTED,
 	SE_RN_NEXT_EXPECTED,
 	SE_RN_UNTIL_EXPECTED,
@@ -437,6 +457,7 @@ typedef enum mb_error_e {
 	SE_RN_COLLECTION_OR_ITERATOR_OR_CLASS_EXPECTED,
 	SE_RN_INVALID_ITERATOR,
 	SE_RN_EMPTY_COLLECTION,
+	SE_RN_REFERENCED_USERTYPE_EXPECTED,
 	SE_RN_REFERENCED_TYPE_EXPECTED,
 	SE_RN_REFERENCE_COUNT_OVERFLOW,
 	SE_RN_WEAK_REFERENCE_COUNT_OVERFLOW,
@@ -531,22 +552,24 @@ typedef int (* mb_func_t)(struct mb_interpreter_t*, void**);
 typedef int (* mb_has_routine_arg_func_t)(struct mb_interpreter_t*, void**, mb_value_t*, unsigned, unsigned*, void*);
 typedef int (* mb_pop_routine_arg_func_t)(struct mb_interpreter_t*, void**, mb_value_t*, unsigned, unsigned*, void*, mb_value_t*);
 typedef int (* mb_routine_func_t)(struct mb_interpreter_t*, void**, mb_value_t*, unsigned, void*, mb_has_routine_arg_func_t, mb_pop_routine_arg_func_t);
-typedef void (* mb_debug_stepped_handler_t)(struct mb_interpreter_t*, void**, char*, int, unsigned short, unsigned short);
+typedef int (* mb_debug_stepped_handler_t)(struct mb_interpreter_t*, void**, char*, int, unsigned short, unsigned short);
 typedef void (* mb_error_handler_t)(struct mb_interpreter_t*, enum mb_error_e, char*, char*, int, unsigned short, unsigned short, int);
 typedef int (* mb_print_func_t)(const char*, ...);
 typedef int (* mb_input_func_t)(char*, int);
 typedef int (* mb_import_handler_t)(struct mb_interpreter_t*, const char*);
 typedef void (* mb_dtor_func_t)(struct mb_interpreter_t*, void*);
 typedef void* (* mb_clone_func_t)(struct mb_interpreter_t*, void*);
-typedef unsigned int (* mb_hash_func_t)(struct mb_interpreter_t*, void*);
+typedef unsigned (* mb_hash_func_t)(struct mb_interpreter_t*, void*);
 typedef int (* mb_cmp_func_t)(struct mb_interpreter_t*, void*, void*);
 typedef int (* mb_fmt_func_t)(struct mb_interpreter_t*, void*, char*, unsigned);
+typedef void (* mb_alive_marker)(struct mb_interpreter_t*, void*, mb_value_t);
+typedef void (* mb_alive_checker)(struct mb_interpreter_t*, void*, mb_value_t, mb_alive_marker);
 typedef int (* mb_meta_operator_t)(struct mb_interpreter_t*, void**, mb_value_t*, mb_value_t*, mb_value_t*);
-typedef mb_meta_status_u (* mb_meta_func_t)(struct mb_interpreter_t*, void**, const char*);
+typedef mb_meta_status_u (* mb_meta_func_t)(struct mb_interpreter_t*, void**, mb_value_t*, const char*);
 typedef char* (* mb_memory_allocate_func_t)(unsigned);
 typedef void (* mb_memory_free_func_t)(char*);
 
-MBAPI unsigned int mb_ver(void);
+MBAPI unsigned long mb_ver(void);
 MBAPI const char* mb_ver_string(void);
 
 MBAPI int mb_init(void);
@@ -600,6 +623,7 @@ MBAPI int mb_make_ref_value(struct mb_interpreter_t* s, void* val, mb_value_t* o
 MBAPI int mb_get_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val, void** out);
 MBAPI int mb_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val);
 MBAPI int mb_unref_value(struct mb_interpreter_t* s, void** l, mb_value_t val);
+MBAPI int mb_set_alive_checker_of_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_alive_checker f);
 MBAPI int mb_override_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_meta_func_u m, void* f);
 MBAPI int mb_dispose_value(struct mb_interpreter_t* s, mb_value_t val);
 

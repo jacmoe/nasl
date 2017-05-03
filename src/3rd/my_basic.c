@@ -3,7 +3,7 @@
 **
 ** For the latest info, see https://github.com/paladin-t/my_basic/
 **
-** Copyright (C) 2011 - 2016 Wang Renxin
+** Copyright (C) 2011 - 2017 Wang Renxin
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a copy of
 ** this software and associated documentation files (the "Software"), to deal in
@@ -32,6 +32,12 @@
 #include "my_basic.h"
 #if defined ARDUINO && !defined MB_CP_ARDUINO
 #	define MB_CP_ARDUINO
+#	ifndef MB_DISABLE_LOAD_FILE
+#		define MB_DISABLE_LOAD_FILE
+#	endif /* MB_DISABLE_LOAD_FILE */
+#	ifndef MB_MANUAL_REAL_FORMATTING
+#		define MB_MANUAL_REAL_FORMATTING
+#	endif /* MB_MANUAL_REAL_FORMATTING */
 #endif /* ARDUINO && !MB_CP_ARDUINO */
 #ifdef MB_CP_VC
 #	include <conio.h>
@@ -90,18 +96,18 @@ extern "C" {
 /** Macros */
 
 /* Version information */
-#define _VER_MAJOR 1
-#define _VER_MINOR 2
-#define _VER_REVISION 0
-#define _VER_SUFFIX
-#define _MB_VERSION ((_VER_MAJOR * 0x01000000) + (_VER_MINOR * 0x00010000) + (_VER_REVISION))
-#define _STRINGIZE(A) _MAKE_STRINGIZE(A)
-#define _MAKE_STRINGIZE(A) #A
-#if _VER_REVISION == 0
-#	define _MB_VERSION_STRING _STRINGIZE(_VER_MAJOR._VER_MINOR _VER_SUFFIX)
-#else /* _VER_REVISION == 0 */
-#	define _MB_VERSION_STRING _STRINGIZE(_VER_MAJOR._VER_MINOR._VER_REVISION _VER_SUFFIX)
-#endif /* _VER_REVISION == 0 */
+#define MB_VER_MAJOR 1
+#define MB_VER_MINOR 2
+#define MB_VER_REVISION 0
+#define MB_VER_SUFFIX
+#define MB_VERSION ((MB_VER_MAJOR * 0x01000000) + (MB_VER_MINOR * 0x00010000) + (MB_VER_REVISION))
+#define MB_MAKE_STRINGIZE(A) #A
+#define MB_STRINGIZE(A) MB_MAKE_STRINGIZE(A)
+#if MB_VER_REVISION == 0
+#	define MB_VERSION_STRING MB_STRINGIZE(MB_VER_MAJOR.MB_VER_MINOR MB_VER_SUFFIX)
+#else /* MB_VER_REVISION == 0 */
+#	define MB_VERSION_STRING MB_STRINGIZE(MB_VER_MAJOR.MB_VER_MINOR.MB_VER_REVISION MB_VER_SUFFIX)
+#endif /* MB_VER_REVISION == 0 */
 
 /* Define as 1 to create hash table nodes lazily, 0 obligingly */
 #define _LAZY_HASH_TABLE 1
@@ -111,6 +117,9 @@ extern "C" {
 
 /* Define as 1 to use a comma to PRINT a new line, 0 to use a semicolon */
 #define _COMMA_AS_NEWLINE 0
+
+/* Define as 1 to enable multiline statement */
+#define _MULTILINE_STATEMENT 1
 
 #define _NO_EAT_COMMA 2
 
@@ -145,6 +154,22 @@ extern "C" {
 #ifndef toupper
 #	define toupper(__c) (islower(__c) ? ((__c) - 'a' + 'A') : (__c))
 #endif /* toupper */
+
+#ifdef MB_COMPACT_MODE
+#	define _PACK1 : 1
+#	define _PACK8 : 8
+#else /* MB_COMPACT_MODE */
+#	define _PACK1
+#	define _PACK8
+#endif /* MB_COMPACT_MODE */
+
+#ifndef _mb_unaligned
+#	if defined MB_CP_VC && defined MB_OS_WIN64
+#		define _mb_unaligned __unaligned
+#	else
+#		define _mb_unaligned
+#	endif
+#endif /* _mb_unaligned */
 
 #define _COPY_BYTES(__l, __r) do { memcpy((__l), (__r), sizeof(mb_val_bytes_t)); } while(0)
 
@@ -184,7 +209,7 @@ typedef struct _ls_node_t {
 
 /** Dictionary */
 
-typedef unsigned int (* _ht_hash)(void*, void*);
+typedef unsigned (* _ht_hash)(void*, void*);
 typedef _common_compare _ht_compare;
 typedef _common_operation _ht_operation;
 
@@ -192,15 +217,15 @@ typedef struct _ht_node_t {
 	_ls_operation free_extra;
 	_ht_compare compare;
 	_ht_hash hash;
-	unsigned int array_size;
-	unsigned int count;
+	unsigned array_size;
+	unsigned count;
 	_ls_node_t** array;
 } _ht_node_t;
 
 /** Normal enum/struct/union/const, etc. */
 
 /* Error description text */
-static const char* _ERR_DESC[] = {
+MBCONST static const char* const _ERR_DESC[] = {
 	"No error",
 	/** Common */
 	"Open MY-BASIC failed",
@@ -231,6 +256,7 @@ static const char* _ERR_DESC[] = {
 	"Label does not exist",
 	"No return point",
 	"Colon expected",
+	"Comma expected",
 	"Comma or semicolon expected",
 	"Array identifier expected",
 	"Open bracket expected",
@@ -245,6 +271,7 @@ static const char* _ERR_DESC[] = {
 	"Number expected",
 	"Integer expected",
 	"ELSE statement expected",
+	"ENDIF statement expected",
 	"TO statement expected",
 	"NEXT statement expected",
 	"UNTIL statement expected",
@@ -283,6 +310,7 @@ static const char* _ERR_DESC[] = {
 	"Collection or iterator or class expected",
 	"Invalid iterator",
 	"Empty collection",
+	"Referenced usertype expected",
 	"Referenced type expected",
 	"Reference count overflow",
 	"Weak reference count overflow",
@@ -353,7 +381,7 @@ typedef struct _ref_t {
 	_ref_count_t* count;
 	_ref_count_t* weak_count;
 	_unref_func_t on_unref;
-	_data_e type;
+	_data_e type _PACK8;
 	struct mb_interpreter_t* s;
 } _ref_t;
 
@@ -362,7 +390,7 @@ typedef struct _gc_t {
 	_ht_node_t* recursive_table;
 	_ht_node_t* collected_table;
 	_ht_node_t* valid_table;
-	int_t collecting;
+	unsigned char collecting;
 } _gc_t;
 
 typedef struct _calculation_operator_info_t {
@@ -382,6 +410,9 @@ typedef struct _usertype_ref_t {
 	mb_hash_func_t hash;
 	mb_cmp_func_t cmp;
 	mb_fmt_func_t fmt;
+#ifdef MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF
+	mb_alive_checker alive_checker;
+#endif /* MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF */
 	_calculation_operator_info_t* calc_operators;
 	mb_meta_func_t coll_func;
 	mb_meta_func_t generic_func;
@@ -403,8 +434,8 @@ typedef struct _var_t {
 	char* name;
 	struct _object_t* data;
 #ifdef MB_ENABLE_CLASS
-	bool_t pathing;
-	bool_t isme;
+	bool_t pathing _PACK1;
+	bool_t is_me _PACK1;
 #endif /* MB_ENABLE_CLASS */
 } _var_t;
 
@@ -418,9 +449,9 @@ typedef struct _array_t {
 	_data_e* types;
 #endif /* MB_SIMPLE_ARRAY */
 	void* raw;
-	unsigned int count;
-	int dimension_count;
-	int dimensions[MB_MAX_DIMENSION_COUNT];
+	unsigned count;
+	unsigned char dimension_count;
+	unsigned dimensions[MB_MAX_DIMENSION_COUNT];
 } _array_t;
 
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -445,7 +476,7 @@ typedef struct _list_t {
 typedef struct _list_it_t {
 	_ref_t weak_ref;
 	_list_t* list;
-	bool_t locking;
+	bool_t locking _PACK1;
 	union {
 		_ls_node_t* node;
 		int_t ranging;
@@ -463,8 +494,8 @@ typedef struct _dict_t {
 typedef struct _dict_it_t {
 	_ref_t weak_ref;
 	_dict_t* dict;
-	bool_t locking;
-	unsigned int curr_bucket;
+	bool_t locking _PACK1;
+	unsigned curr_bucket;
 	_ls_node_t* curr_node;
 } _dict_it_t;
 #endif /* MB_ENABLE_COLLECTION_LIB */
@@ -555,7 +586,7 @@ typedef struct _routine_t {
 #ifdef MB_ENABLE_CLASS
 	_class_t* instance;
 #endif /* MB_ENABLE_CLASS */
-	bool_t is_cloned;
+	bool_t is_cloned _PACK1;
 	_invokable_e type;
 } _routine_t;
 
@@ -600,13 +631,13 @@ typedef struct _object_t {
 		void* pointer;
 		_raw_t raw;
 	} data;
-	bool_t ref;
+	bool_t is_ref _PACK1;
 #ifdef MB_ENABLE_SOURCE_TRACE
 	int source_pos;
 	unsigned short source_row;
 	unsigned short source_col;
 #else /* MB_ENABLE_SOURCE_TRACE */
-	char source_pos;
+	char source_pos _PACK1;
 #endif /* MB_ENABLE_SOURCE_TRACE */
 } _object_t;
 
@@ -684,11 +715,11 @@ MBAPI size_t MB_SIZEOF_RTN = sizeof(_routine_t);
 #endif /* MB_ENABLE_ALLOC_STAT */
 
 #ifdef MB_ENABLE_SOURCE_TRACE
-static const _object_t _OBJ_INT_UNIT = { _DT_INT, (int_t)1, false, 0, 0, 0 };
-static const _object_t _OBJ_INT_ZERO = { _DT_INT, (int_t)0, false, 0, 0, 0 };
+MBCONST static const _object_t _OBJ_INT_UNIT = { _DT_INT, (int_t)1, false, 0, 0, 0 };
+MBCONST static const _object_t _OBJ_INT_ZERO = { _DT_INT, (int_t)0, false, 0, 0, 0 };
 #else /* MB_ENABLE_SOURCE_TRACE */
-static const _object_t _OBJ_INT_UNIT = { _DT_INT, (int_t)1, false, 0 };
-static const _object_t _OBJ_INT_ZERO = { _DT_INT, (int_t)0, false, 0 };
+MBCONST static const _object_t _OBJ_INT_UNIT = { _DT_INT, (int_t)1, false, 0 };
+MBCONST static const _object_t _OBJ_INT_ZERO = { _DT_INT, (int_t)0, false, 0 };
 #endif /* MB_ENABLE_SOURCE_TRACE */
 #define _MAKE_NIL(__o) do { memset((__o), 0, sizeof(_object_t)); (__o)->type = _DT_NIL; } while(0)
 
@@ -697,27 +728,27 @@ static _object_t* _OBJ_BOOL_FALSE = 0;
 
 #ifdef MB_ENABLE_CLASS
 #ifdef MB_ENABLE_SOURCE_TRACE
-static const _object_t _OBJ_UNKNOWN = { _DT_UNKNOWN, (int_t)0, false, 0, 0, 0 };
+MBCONST static const _object_t _OBJ_UNKNOWN = { _DT_UNKNOWN, (int_t)0, false, 0, 0, 0 };
 #else /* MB_ENABLE_SOURCE_TRACE */
-static const _object_t _OBJ_UNKNOWN = { _DT_UNKNOWN, (int_t)0, false, 0 };
+MBCONST static const _object_t _OBJ_UNKNOWN = { _DT_UNKNOWN, (int_t)0, false, 0 };
 #endif /* MB_ENABLE_SOURCE_TRACE */
-static const _ls_node_t _LS_NODE_UNKNOWN = { (void*)&_OBJ_UNKNOWN, 0, 0, 0 };
+MBCONST static const _ls_node_t _LS_NODE_UNKNOWN = { (void*)&_OBJ_UNKNOWN, 0, 0, 0 };
 #endif /* MB_ENABLE_CLASS */
 
 #define _VAR_ARGS_STR "..."
 
 #ifdef MB_ENABLE_CLASS
-static const _var_t _VAR_ARGS = { _VAR_ARGS_STR, 0, 0, 0 };
+MBCONST static const _var_t _VAR_ARGS = { _VAR_ARGS_STR, 0, 0, 0 };
 #else /* MB_ENABLE_CLASS */
-static const _var_t _VAR_ARGS = { _VAR_ARGS_STR, 0 };
+MBCONST static const _var_t _VAR_ARGS = { _VAR_ARGS_STR, 0 };
 #endif /* MB_ENABLE_CLASS */
 
 /* Parsing context */
 #define _CLASS_STATE_NONE 0
 #define _CLASS_STATE_PROC 1
 
-static const char _MULTI_LINE_COMMENT_PREFIX[] = "'[";
-static const char _MULTI_LINE_COMMENT_POSTFIX[] = "']";
+MBCONST static const char _MULTI_LINE_COMMENT_PREFIX[] = "'[";
+MBCONST static const char _MULTI_LINE_COMMENT_POSTFIX[] = "']";
 
 typedef enum _parsing_state_e {
 	_PS_NORMAL,
@@ -730,6 +761,10 @@ typedef enum _symbol_state_e {
 	_SS_IDENTIFIER,
 	_SS_OPERATOR
 } _symbol_state_e;
+
+#define _ROUTINE_STATE_NONE 0
+#define _ROUTINE_STATE_DEF 1
+#define _ROUTINE_STATE_PARAMS 2
 
 typedef struct _parsing_context_t {
 	_ls_node_t* imported;
@@ -803,7 +838,11 @@ typedef struct mb_interpreter_t {
 	char* source_file;
 	_parsing_context_t* parsing_context;
 	_running_context_t* running_context;
+	bool_t has_run _PACK1;
 	_ls_node_t* var_args;
+#ifdef MB_ENABLE_USERTYPE_REF
+	_object_t* usertype_ref_ahead;
+#endif /* MB_ENABLE_USERTYPE_REF */
 	unsigned char jump_set;
 #ifdef MB_ENABLE_CLASS
 	_class_t* last_instance;
@@ -819,6 +858,9 @@ typedef struct mb_interpreter_t {
 #ifdef MB_ENABLE_STACK_TRACE
 	_ls_node_t* stack_frames;
 #endif /* MB_ENABLE_STACK_TRACE */
+#ifdef _MULTILINE_STATEMENT
+	_ls_node_t* multiline_enabled;
+#endif /* _MULTILINE_STATEMENT */
 	/** Error handling */
 	bool_t handled_error;
 	mb_error_e last_error;
@@ -835,7 +877,7 @@ typedef struct mb_interpreter_t {
 } mb_interpreter_t;
 
 /* Operations */
-static const char _PRECEDE_TABLE[20][20] = { /* Operator priority table */
+MBCONST static const char _PRECEDE_TABLE[20][20] = { /* Operator priority table */
 	/* +    -    *    /   MOD   ^    (    )    =    >    <    >=   <=   ==   <>  AND   OR  NOT  NEG   IS */
 	{ '>', '>', '<', '<', '<', '<', '<', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>' }, /* + */
 	{ '>', '>', '<', '<', '<', '<', '<', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>', '>' }, /* - */
@@ -1140,10 +1182,10 @@ static void* _ls_popback(_ls_node_t* list);
 static _ls_node_t* _ls_front(_ls_node_t* node);
 static void* _ls_popfront(_ls_node_t* list);
 static _ls_node_t* _ls_insert_at(_ls_node_t* list, int index, void* data);
-static unsigned int _ls_remove(_ls_node_t* list, _ls_node_t* node, _ls_operation op);
-static unsigned int _ls_try_remove(_ls_node_t* list, void* info, _ls_compare cmp, _ls_operation op);
-static unsigned int _ls_foreach(_ls_node_t* list, _ls_operation op);
-static _ls_node_t* _ls_sort(_ls_node_t** list, _ls_compare cmp);
+static unsigned _ls_remove(_ls_node_t* list, _ls_node_t* node, _ls_operation op);
+static unsigned _ls_try_remove(_ls_node_t* list, void* info, _ls_compare cmp, _ls_operation op);
+static unsigned _ls_foreach(_ls_node_t* list, _ls_operation op);
+static _ls_node_t* _ls_sort(_ls_node_t* _mb_unaligned * list, _ls_compare cmp);
 static unsigned _ls_count(_ls_node_t* list);
 static bool_t _ls_empty(_ls_node_t* list);
 static void _ls_clear(_ls_node_t* list);
@@ -1178,29 +1220,29 @@ static int _ls_free_extra(void* data, void* extra);
 
 /** Dictionary operations */
 
-static unsigned int _ht_hash_object(void* ht, void* d);
-static unsigned int _ht_hash_string(void* ht, void* d);
-static unsigned int _ht_hash_intptr(void* ht, void* d);
-static unsigned int _ht_hash_ref(void* ht, void* d);
+static unsigned _ht_hash_object(void* ht, void* d);
+static unsigned _ht_hash_string(void* ht, void* d);
+static unsigned _ht_hash_intptr(void* ht, void* d);
+static unsigned _ht_hash_ref(void* ht, void* d);
 
 static int _ht_cmp_object(void* d1, void* d2);
 static int _ht_cmp_string(void* d1, void* d2);
 static int _ht_cmp_intptr(void* d1, void* d2);
 static int _ht_cmp_ref(void* d1, void* d2);
 
-static _ht_node_t* _ht_create(unsigned int size, _ht_compare cmp, _ht_hash hs, _ls_operation freeextra);
+static _ht_node_t* _ht_create(unsigned size, _ht_compare cmp, _ht_hash hs, _ls_operation freeextra);
 static _ls_node_t* _ht_find(_ht_node_t* ht, void* key);
-static unsigned int _ht_set_or_insert(_ht_node_t* ht, void* key, void* value);
-static unsigned int _ht_remove(_ht_node_t* ht, void* key, _ls_compare cmp);
-static unsigned int _ht_foreach(_ht_node_t* ht, _ht_operation op);
-static unsigned int _ht_count(_ht_node_t* ht);
+static unsigned _ht_set_or_insert(_ht_node_t* ht, void* key, void* value);
+static unsigned _ht_remove(_ht_node_t* ht, void* key, _ls_compare cmp);
+static unsigned _ht_foreach(_ht_node_t* ht, _ht_operation op);
+static unsigned _ht_count(_ht_node_t* ht);
 static void _ht_clear(_ht_node_t* ht);
 static void _ht_destroy(_ht_node_t* ht);
 static int _ht_remove_exist(void* data, void* extra, _ht_node_t* ht);
 #define _HT_FOREACH(H, O, P, E) \
 	do { \
 		_ls_node_t* __bucket = 0; \
-		unsigned int __ul = 0; \
+		unsigned __ul = 0; \
 		if((H)->array) { \
 			for(__ul = 0; __ul < (H)->array_size; ++__ul) { \
 				__bucket = (H)->array[__ul]; \
@@ -1321,16 +1363,18 @@ static mb_meta_status_u _try_overridden(mb_interpreter_t* s, void** l, mb_value_
 #if _WARNING_AS_ERROR
 #	define _handle_error_at_pos(__s, __err, __f, __pos, __row, __col, __ret, __exit, __result) \
 		do { \
-			_set_current_error((__s), (__err), (__f)); \
-			_set_error_pos((__s), (__pos), (__row), (__col)); \
+			if(_set_current_error((__s), (__err), (__f))) { \
+				_set_error_pos((__s), (__pos), (__row), (__col)); \
+			} \
 			__result = (__ret); \
 			goto __exit; \
 		} while(0)
 #else /* _WARNING_AS_ERROR */
 #	define _handle_error_at_pos(__s, __err, __f, __pos, __row, __col, __ret, __exit, __result) \
 		do { \
-			_set_current_error((__s), (__err), (__f)); \
-			_set_error_pos((__s), (__pos), (__row), (__col)); \
+			if(_set_current_error((__s), (__err), (__f))) { \
+				_set_error_pos((__s), (__pos), (__row), (__col)); \
+			} \
 			if((__ret) != MB_FUNC_WARNING) { \
 				__result = (__ret); \
 			} \
@@ -1353,10 +1397,12 @@ static mb_meta_status_u _try_overridden(mb_interpreter_t* s, void** l, mb_value_
 
 #define _OUTTER_SCOPE(__s) ((__s)->prev ? (__s)->prev : (__s))
 
-static void _set_current_error(mb_interpreter_t* s, mb_error_e err, char* f);
+static bool_t _set_current_error(mb_interpreter_t* s, mb_error_e err, char* f);
 
 static mb_print_func_t _get_printer(mb_interpreter_t* s);
 static mb_input_func_t _get_inputer(mb_interpreter_t* s);
+
+static void _print_string(mb_interpreter_t* s, _object_t* obj);
 
 /** Parsing helpers */
 
@@ -1368,6 +1414,8 @@ static void _end_of_file(_parsing_context_t* context);
 #define _RETURN_CHAR '\r'
 #define _STRING_POSTFIX_CHAR '$'
 #define _DUMMY_ASSIGN_CHAR "#"
+
+#define _REMARK_STR "REM"
 
 static bool_t _is_blank_char(char c);
 static bool_t _is_eof_char(char c);
@@ -1381,7 +1429,7 @@ static bool_t _is_numeric_char(char c);
 static bool_t _is_identifier_char(char c);
 static bool_t _is_operator_char(char c);
 static bool_t _is_exponential_char(char c);
-static bool_t _is_using_char(char c);
+static bool_t _is_using_at_char(char c);
 static bool_t _is_exponent_prefix(char* s, int begin, int end);
 
 static int _append_char_to_symbol(mb_interpreter_t* s, char c);
@@ -1405,6 +1453,9 @@ static bool_t _try_get_value(_object_t* obj, mb_value_u* val, _data_e expected);
 static bool_t _is_number(void* obj);
 static bool_t _is_string(void* obj);
 static char* _extract_string(_object_t* obj);
+#ifdef MB_MANUAL_REAL_FORMATTING
+static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint);
+#endif /* MB_MANUAL_REAL_FORMATTING */
 
 #ifdef MB_ENABLE_COLLECTION_LIB
 #	define _IS_LIST(__o) ((__o) && ((_object_t*)(__o))->type == _DT_LIST)
@@ -1414,7 +1465,7 @@ static char* _extract_string(_object_t* obj);
 #ifdef MB_ENABLE_CLASS
 #	define _IS_CLASS(__o) ((__o) && ((_object_t*)(__o))->type == _DT_CLASS)
 #	define _GET_CLASS(__o) ((!__o) ? 0 : (_IS_CLASS(__o) ? (__o) : (_IS_VAR(__o) && _IS_CLASS((__o)->data.variable->data) ? (__o)->data.variable->data : 0)))
-#	define _IS_ME(__v) (!!(__v)->isme)
+#	define _IS_ME(__v) (!!(__v)->is_me)
 #else /* MB_ENABLE_CLASS */
 #	define _IS_ME(__v) false
 #endif /* MB_ENABLE_CLASS */
@@ -1442,17 +1493,17 @@ static char* _extract_string(_object_t* obj);
 #ifdef MB_ENABLE_ARRAY_REF
 #	define _REF_ARRAY(__o) \
 		case _DT_ARRAY: \
-			if(!(__o)->ref) \
+			if(!(__o)->is_ref) \
 				_ref(&(__o)->data.array->ref, (__o)->data.array); \
 			break;
 #	define _UNREF_ARRAY(__o) \
 		case _DT_ARRAY: \
-			if(!(__o)->ref) \
+			if(!(__o)->is_ref) \
 				_unref(&(__o)->data.array->ref, (__o)->data.array); \
 			break;
 #	define _ADDGC_ARRAY(__o, __g) \
 		case _DT_ARRAY: \
-			if(!(__o)->ref) \
+			if(!(__o)->is_ref) \
 				_gc_add(&(__o)->data.array->ref, (__o)->data.array, (__g)); \
 			break;
 #else /* MB_ENABLE_ARRAY_REF */
@@ -1510,12 +1561,12 @@ static char* _extract_string(_object_t* obj);
 			break;
 #	define _UNREF_CLASS(__o) \
 		case _DT_CLASS: \
-			if(!(__o)->ref) \
+			if(!(__o)->is_ref) \
 				_unref(&(__o)->data.instance->ref, (__o)->data.instance); \
 			break;
 #	define _ADDGC_CLASS(__o, __g) \
 		case _DT_CLASS: \
-			if(!(__o)->ref) \
+			if(!(__o)->is_ref) \
 				_gc_add(&(__o)->data.instance->ref, (__o)->data.instance, (__g)); \
 			break;
 #else /* MB_ENABLE_CLASS */
@@ -1526,20 +1577,21 @@ static char* _extract_string(_object_t* obj);
 #ifdef MB_ENABLE_LAMBDA
 #	define _REF_ROUTINE(__o) \
 		case _DT_ROUTINE: \
-			_ref(&(__o)->data.routine->func.lambda.ref, (__o)->data.routine); \
+			if(!(__o)->is_ref && (__o)->data.routine->type == _IT_LAMBDA) \
+				_ref(&(__o)->data.routine->func.lambda.ref, (__o)->data.routine); \
 			break;
 #	define _UNREF_ROUTINE(__o) \
 		case _DT_ROUTINE: \
-			if(!(__o)->ref && (__o)->data.routine->type == _IT_LAMBDA) \
+			if(!(__o)->is_ref && (__o)->data.routine->type == _IT_LAMBDA) \
 				_unref(&(__o)->data.routine->func.lambda.ref, (__o)->data.routine); \
-			else if(!(__o)->ref && (__o)->data.routine->type != _IT_LAMBDA)\
+			else if(!(__o)->is_ref && (__o)->data.routine->type != _IT_LAMBDA) \
 				_destroy_routine(0, (__o)->data.routine); \
 			break;
 #	define _ADDGC_ROUTINE(__o, __g) \
 		case _DT_ROUTINE: \
-			if(!(__o)->ref && (__o)->data.routine->type == _IT_LAMBDA) \
+			if(!(__o)->is_ref && (__o)->data.routine->type == _IT_LAMBDA) \
 				_gc_add(&(__o)->data.routine->func.lambda.ref, (__o)->data.routine, (__g)); \
-			else if(!(__o)->ref && (__o)->data.routine->type != _IT_LAMBDA)\
+			else if(!(__o)->is_ref && (__o)->data.routine->type != _IT_LAMBDA) \
 				_dispose_object(__o); \
 			break;
 #else /* MB_ENABLE_LAMBDA */
@@ -1605,6 +1657,7 @@ static void _gc_remove(_ref_t* ref, void* data, _gc_t* gc);
 static int _gc_add_reachable(void* data, void* extra, void* h);
 static int _gc_add_reachable_both(void* data, void* extra, void* h);
 static void _gc_get_reachable(mb_interpreter_t* s, _ht_node_t* ht);
+static void _gc_alive_marker(mb_interpreter_t* s, void* h, mb_value_t val);
 static int _gc_destroy_garbage_in_list(void* data, void* extra, _gc_t* gc);
 static int _gc_destroy_garbage_in_dict(void* data, void* extra, _gc_t* gc);
 #ifdef MB_ENABLE_CLASS
@@ -1626,6 +1679,7 @@ static void _gc_collect_garbage(mb_interpreter_t* s, int depth);
 static _usertype_ref_t* _create_usertype_ref(mb_interpreter_t* s, void* val, mb_dtor_func_t un, mb_clone_func_t cl, mb_hash_func_t hs, mb_cmp_func_t cp, mb_fmt_func_t ft);
 static void _destroy_usertype_ref(_usertype_ref_t* c);
 static void _unref_usertype_ref(_ref_t* ref, void* data);
+static bool_t _try_call_func_on_usertype_ref(mb_interpreter_t* s, _ls_node_t** ast, _object_t* obj, _ls_node_t* pathed, int* ret);
 #endif /* MB_ENABLE_USERTYPE_REF */
 
 static _array_t* _create_array(mb_interpreter_t* s, const char* n, _data_e t);
@@ -1635,9 +1689,9 @@ static void _destroy_array(_array_t* arr);
 static void _init_array(_array_t* arr);
 static _array_t* _clone_array(mb_interpreter_t* s, _array_t* arr);
 static int _get_array_pos(mb_interpreter_t* s, _array_t* arr, int* d, int c);
-static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, unsigned int* index, bool_t* literally);
-static bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type);
-static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type);
+static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, unsigned* index, bool_t* literally);
+static bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned index, mb_value_u* val, _data_e* type);
+static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, unsigned index, mb_value_u* val, _data_e* type);
 static void _clear_array(_array_t* arr);
 static bool_t _is_array(void* obj);
 #ifdef MB_ENABLE_ARRAY_REF
@@ -1695,7 +1749,7 @@ static void _unlink_meta_class(mb_interpreter_t* s, _class_t* derived);
 static int _unlink_meta_instance(void* data, void* extra, _class_t* derived);
 static int _clone_clsss_field(void* data, void* extra, void* n);
 static bool_t _clone_class_meta_link(_class_t* meta, void* n, void* ret);
-static int _search_class_meta_function(mb_interpreter_t* s, _class_t* instance, const char* n, _routine_t** f);
+static int _search_class_meta_function(mb_interpreter_t* s, _class_t* instance, const char* n, _routine_t* _mb_unaligned * f);
 static int _search_class_hash_and_compare_functions(mb_interpreter_t* s, _class_t* instance);
 static bool_t _is_a_class(_class_t* instance, void* m, void* ret);
 static bool_t _add_class_meta_reachable(_class_t* meta, void* ht, void* ret);
@@ -1709,6 +1763,7 @@ static bool_t _is_valid_class_accessor_following_routine(mb_interpreter_t* s, _v
 static void _init_routine(mb_interpreter_t* s, _routine_t* routine, char* n, mb_routine_func_t f);
 static int _begin_routine(mb_interpreter_t* s);
 static bool_t _end_routine(mb_interpreter_t* s);
+static void _begin_routine_definition(mb_interpreter_t* s);
 static void _begin_routine_parameter_list(mb_interpreter_t* s);
 static void _end_routine_parameter_list(mb_interpreter_t* s);
 static _object_t* _duplicate_parameter(void* data, void* extra, _running_context_t* running);
@@ -1790,7 +1845,7 @@ static _object_t* _eval_var_in_print(mb_interpreter_t* s, _object_t** val_ptr, _
 
 /** Interpretation */
 
-static void _stepped(mb_interpreter_t* s, _ls_node_t* ast);
+static int _stepped(mb_interpreter_t* s, _ls_node_t* ast);
 static int _execute_statement(mb_interpreter_t* s, _ls_node_t** l, bool_t force_next);
 static int _common_end_looping(mb_interpreter_t* s, _ls_node_t** l);
 static int _common_keep_looping(mb_interpreter_t* s, _ls_node_t** l, _var_t* var_loop);
@@ -1801,10 +1856,11 @@ static int _execute_ranged_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t*
 static int _skip_to(mb_interpreter_t* s, _ls_node_t** l, mb_func_t f, _data_e t);
 static int _skip_if_chunk(mb_interpreter_t* s, _ls_node_t** l);
 static int _skip_struct(mb_interpreter_t* s, _ls_node_t** l, mb_func_t open_func, mb_func_t close_func);
+static bool_t _multiline_statement(mb_interpreter_t* s);
 
 static _running_context_t* _create_running_context(bool_t create_var_dict);
 static _parsing_context_t* _reset_parsing_context(_parsing_context_t* context);
-static void _destroy_parsing_context(_parsing_context_t** context);
+static void _destroy_parsing_context(_parsing_context_t* _mb_unaligned * context);
 
 /** Interface processors */
 
@@ -1975,7 +2031,7 @@ static int _coll_list(mb_interpreter_t* s, void** l);
 static int _coll_dict(mb_interpreter_t* s, void** l);
 static int _coll_push(mb_interpreter_t* s, void** l);
 static int _coll_pop(mb_interpreter_t* s, void** l);
-static int _coll_peek(mb_interpreter_t* s, void** l);
+static int _coll_back(mb_interpreter_t* s, void** l);
 static int _coll_insert(mb_interpreter_t* s, void** l);
 static int _coll_sort(mb_interpreter_t* s, void** l);
 static int _coll_exist(mb_interpreter_t* s, void** l);
@@ -1992,7 +2048,7 @@ static int _coll_move_next(mb_interpreter_t* s, void** l);
 
 #define _CORE_ID_TYPE "TYPE"
 
-static const _func_t _core_libs[] = {
+MBCONST static const _func_t _core_libs[] = {
 	{ _DUMMY_ASSIGN_CHAR, _core_dummy_assign },
 	{ "+", _core_add },
 	{ "-", _core_min },
@@ -2074,7 +2130,7 @@ static const _func_t _core_libs[] = {
 #define _STD_ID_GET "GET"
 #define _STD_ID_SET "SET"
 
-static const _func_t _std_libs[] = {
+MBCONST static const _func_t _std_libs[] = {
 	{ "ABS", _std_abs },
 	{ "SGN", _std_sgn },
 	{ "SQR", _std_sqr },
@@ -2114,7 +2170,7 @@ static const _func_t _std_libs[] = {
 #	define _COLL_ID_DICT "DICT"
 #	define _COLL_ID_PUSH "PUSH"
 #	define _COLL_ID_POP "POP"
-#	define _COLL_ID_PEEK "PEEK"
+#	define _COLL_ID_BACK "BACK"
 #	define _COLL_ID_INSERT "INSERT"
 #	define _COLL_ID_SORT "SORT"
 #	define _COLL_ID_EXIST "EXIST"
@@ -2126,12 +2182,12 @@ static const _func_t _std_libs[] = {
 #	define _COLL_ID_ITERATOR "ITERATOR"
 #	define _COLL_ID_MOVE_NEXT "MOVE_NEXT"
 
-static const _func_t _coll_libs[] = {
+MBCONST static const _func_t _coll_libs[] = {
 	{ _COLL_ID_LIST, _coll_list },
 	{ _COLL_ID_DICT, _coll_dict },
 	{ _COLL_ID_PUSH, _coll_push },
 	{ _COLL_ID_POP, _coll_pop },
-	{ _COLL_ID_PEEK, _coll_peek },
+	{ _COLL_ID_BACK, _coll_back },
 	{ _COLL_ID_INSERT, _coll_insert },
 	{ _COLL_ID_SORT, _coll_sort },
 	{ _COLL_ID_EXIST, _coll_exist },
@@ -2333,8 +2389,8 @@ static _ls_node_t* _ls_insert_at(_ls_node_t* list, int index, void* data) {
 	return result;
 }
 
-static unsigned int _ls_remove(_ls_node_t* list, _ls_node_t* node, _ls_operation op) {
-	unsigned int result = 0;
+static unsigned _ls_remove(_ls_node_t* list, _ls_node_t* node, _ls_operation op) {
+	unsigned result = 0;
 
 	mb_assert(list && node);
 
@@ -2355,8 +2411,8 @@ static unsigned int _ls_remove(_ls_node_t* list, _ls_node_t* node, _ls_operation
 	return result;
 }
 
-static unsigned int _ls_try_remove(_ls_node_t* list, void* info, _ls_compare cmp, _ls_operation op) {
-	unsigned int result = 0;
+static unsigned _ls_try_remove(_ls_node_t* list, void* info, _ls_compare cmp, _ls_operation op) {
+	unsigned result = 0;
 	_ls_node_t* tmp = 0;
 
 	mb_assert(list && cmp);
@@ -2386,8 +2442,8 @@ static unsigned int _ls_try_remove(_ls_node_t* list, void* info, _ls_compare cmp
 	return result;
 }
 
-static unsigned int _ls_foreach(_ls_node_t* list, _ls_operation op) {
-	unsigned int idx = 0;
+static unsigned _ls_foreach(_ls_node_t* list, _ls_operation op) {
+	unsigned idx = 0;
 	int opresult = _OP_RESULT_NORMAL;
 	_ls_node_t* node = 0;
 	_ls_node_t* tmp = 0;
@@ -2413,7 +2469,7 @@ static unsigned int _ls_foreach(_ls_node_t* list, _ls_operation op) {
 	return idx;
 }
 
-static _ls_node_t* _ls_sort(_ls_node_t** list, _ls_compare cmp) {
+static _ls_node_t* _ls_sort(_ls_node_t* _mb_unaligned * list, _ls_compare cmp) {
 	/* Copyright 2001 Simon Tatham, http://www.chiark.greenend.org.uk/~sgtatham/algorithms/listsort.c */
 	bool_t is_circular = false, is_double = true;
 	_ls_node_t* p, * q, * e, * tail, * oldhead;
@@ -2558,12 +2614,12 @@ static int _ls_free_extra(void* data, void* extra) {
 
 /** Dictionary operations */
 
-static unsigned int _ht_hash_object(void* ht, void* d) {
-	unsigned int result = 0;
+static unsigned _ht_hash_object(void* ht, void* d) {
+	unsigned result = 0;
 	_ht_node_t* self = (_ht_node_t*)ht;
 	_object_t* o = (_object_t*)d;
 	size_t i = 0;
-	unsigned int h = 0;
+	unsigned h = 0;
 #ifdef MB_ENABLE_CLASS
 	_object_t val;
 #endif /* MB_ENABLE_CLASS */
@@ -2574,7 +2630,10 @@ static unsigned int _ht_hash_object(void* ht, void* d) {
 	switch(o->type) {
 	case _DT_STRING:
 		h = 5 * h + _ht_hash_string(ht, o->data.string);
-		result = h % self->array_size;
+		if(self->array_size == 1)
+			result = 0;
+		else
+			result = h % self->array_size;
 
 		break;
 #ifdef MB_ENABLE_CLASS
@@ -2603,8 +2662,12 @@ static unsigned int _ht_hash_object(void* ht, void* d) {
 #ifdef MB_ENABLE_USERTYPE_REF
 	case _DT_USERTYPE_REF:
 		if(o->data.usertype_ref->hash) {
-			h = 5 * h + o->data.usertype_ref->hash(o->data.usertype_ref->ref.s, o->data.usertype_ref->usertype);
-			result = h % self->array_size;
+			if(self->array_size == 1) {
+				result = 0;
+			} else {
+				h = 5 * h + o->data.usertype_ref->hash(o->data.usertype_ref->ref.s, o->data.usertype_ref->usertype);
+				result = h % self->array_size;
+			}
 
 			break;
 		}
@@ -2615,9 +2678,13 @@ static unsigned int _ht_hash_object(void* ht, void* d) {
 #if defined MB_ENABLE_CLASS || defined MB_ENABLE_USERTYPE_REF
 _default:
 #endif /* MB_ENABLE_CLASS || MB_ENABLE_USERTYPE_REF */
-		for(i = 0; i < sizeof(_raw_t); ++i)
-			h = 5 * h + o->data.raw[i];
-		result = h % self->array_size;
+		if(self->array_size == 1) {
+			result = 0;
+		} else {
+			for(i = 0; i < sizeof(_raw_t); ++i)
+				h = 5 * h + o->data.raw[i];
+			result = h % self->array_size;
+		}
 
 		break;
 	}
@@ -2628,42 +2695,54 @@ _exit:
 	return result;
 }
 
-static unsigned int _ht_hash_string(void* ht, void* d) {
-	unsigned int result = 0;
+static unsigned _ht_hash_string(void* ht, void* d) {
+	unsigned result = 0;
 	_ht_node_t* self = (_ht_node_t*)ht;
 	char* s = (char*)d;
-	unsigned int h = 0;
+	unsigned h = 0;
 
 	mb_assert(ht);
 
-	for( ; *s; ++s)
-		h = 5 * h + *s;
-	result = h % self->array_size;
+	if(self->array_size == 1) {
+		result = 0;
+	} else {
+		for( ; *s; ++s)
+			h = 5 * h + *s;
+		result = h % self->array_size;
+	}
 
 	return result;
 }
 
-static unsigned int _ht_hash_intptr(void* ht, void* d) {
-	unsigned int result = 0;
+static unsigned _ht_hash_intptr(void* ht, void* d) {
+	unsigned result = 0;
 	_ht_node_t* self = (_ht_node_t*)ht;
-	intptr_t i = *(intptr_t*)d;
 
 	mb_assert(ht);
 
-	result = (unsigned int)(i % self->array_size);
+	if(self->array_size == 1) {
+		result = 0;
+	} else {
+		uintptr_t u = (uintptr_t)d;
+		result = (unsigned)(u % self->array_size);
+	}
 
 	return result;
 }
 
-static unsigned int _ht_hash_ref(void* ht, void* d) {
-	unsigned int result = 0;
+static unsigned _ht_hash_ref(void* ht, void* d) {
+	unsigned result = 0;
 	_ht_node_t* self = (_ht_node_t*)ht;
 	_ref_t* ref = (_ref_t*)d;
 
 	mb_assert(ht);
 
-	result = (unsigned int)(intptr_t)ref;
-	result %= self->array_size;
+	if(self->array_size == 1) {
+		result = 0;
+	} else {
+		uintptr_t u = (uintptr_t)ref;
+		result = (unsigned)(u % self->array_size);
+	}
 
 	return result;
 }
@@ -2763,8 +2842,8 @@ static int _ht_cmp_string(void* d1, void* d2) {
 }
 
 static int _ht_cmp_intptr(void* d1, void* d2) {
-	intptr_t i1 = *(intptr_t*)d1;
-	intptr_t i2 = *(intptr_t*)d2;
+	intptr_t i1 = (intptr_t)d1;
+	intptr_t i2 = (intptr_t)d2;
 
 	if(i1 < i2)
 		return -1;
@@ -2787,10 +2866,10 @@ static int _ht_cmp_ref(void* d1, void* d2) {
 	return 0;
 }
 
-static _ht_node_t* _ht_create(unsigned int size, _ht_compare cmp, _ht_hash hs, _ls_operation freeextra) {
-	const unsigned int array_size = size ? size : _HT_ARRAY_SIZE_DEFAULT;
+static _ht_node_t* _ht_create(unsigned size, _ht_compare cmp, _ht_hash hs, _ls_operation freeextra) {
+	const unsigned array_size = size ? size : _HT_ARRAY_SIZE_DEFAULT;
 	_ht_node_t* result = 0;
-	unsigned int ul = 0;
+	unsigned ul = 0;
 
 	if(!cmp)
 		cmp = _ht_cmp_intptr;
@@ -2819,7 +2898,7 @@ static _ht_node_t* _ht_create(unsigned int size, _ht_compare cmp, _ht_hash hs, _
 static _ls_node_t* _ht_find(_ht_node_t* ht, void* key) {
 	_ls_node_t* result = 0;
 	_ls_node_t* bucket = 0;
-	unsigned int hash_code = 0;
+	unsigned hash_code = 0;
 
 	mb_assert(ht && key);
 
@@ -2840,11 +2919,11 @@ static _ls_node_t* _ht_find(_ht_node_t* ht, void* key) {
 	return result;
 }
 
-static unsigned int _ht_set_or_insert(_ht_node_t* ht, void* key, void* value) {
-	unsigned int result = 0;
+static unsigned _ht_set_or_insert(_ht_node_t* ht, void* key, void* value) {
+	unsigned result = 0;
 	_ls_node_t* bucket = 0;
-	unsigned int hash_code = 0;
-	unsigned int ul = 0;
+	unsigned hash_code = 0;
+	unsigned ul = 0;
 
 	mb_assert(ht && key);
 
@@ -2872,9 +2951,9 @@ static unsigned int _ht_set_or_insert(_ht_node_t* ht, void* key, void* value) {
 	return result;
 }
 
-static unsigned int _ht_remove(_ht_node_t* ht, void* key, _ls_compare cmp) {
-	unsigned int result = 0;
-	unsigned int hash_code = 0;
+static unsigned _ht_remove(_ht_node_t* ht, void* key, _ls_compare cmp) {
+	unsigned result = 0;
+	unsigned hash_code = 0;
 	_ls_node_t* bucket = 0;
 
 	mb_assert(ht && key);
@@ -2893,10 +2972,10 @@ static unsigned int _ht_remove(_ht_node_t* ht, void* key, _ls_compare cmp) {
 	return result;
 }
 
-static unsigned int _ht_foreach(_ht_node_t* ht, _ht_operation op) {
-	unsigned int result = 0;
+static unsigned _ht_foreach(_ht_node_t* ht, _ht_operation op) {
+	unsigned result = 0;
 	_ls_node_t* bucket = 0;
-	unsigned int ul = 0;
+	unsigned ul = 0;
 
 	if(ht->array) {
 		for(ul = 0; ul < ht->array_size; ++ul) {
@@ -2909,14 +2988,14 @@ static unsigned int _ht_foreach(_ht_node_t* ht, _ht_operation op) {
 	return result;
 }
 
-static unsigned int _ht_count(_ht_node_t* ht) {
+static unsigned _ht_count(_ht_node_t* ht) {
 	mb_assert(ht);
 
 	return ht->count;
 }
 
 static void _ht_clear(_ht_node_t* ht) {
-	unsigned int ul = 0;
+	unsigned ul = 0;
 
 	mb_assert(ht);
 
@@ -2930,7 +3009,7 @@ static void _ht_clear(_ht_node_t* ht) {
 }
 
 static void _ht_destroy(_ht_node_t* ht) {
-	unsigned int ul = 0;
+	unsigned ul = 0;
 
 	mb_assert(ht);
 
@@ -3172,7 +3251,7 @@ static int mb_uu_ischar(const char* ch) {
 #	define _TRANS(__m, __cp, __g) do { __cp &= ((__g[(unsigned char)c] & __m) != 0); } while(0)
 #	define _TAIL(__ch, __c, __r, __cp, __g) do { _COPY(__ch, __c, __r, __cp); _TRANS(0x70, __cp, __g); } while(0)
 
-	static const unsigned char range[] = {
+	MBCONST static const unsigned char range[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -3383,7 +3462,7 @@ static char _get_priority(mb_func_t op1, mb_func_t op2) {
 static int _get_priority_index(mb_func_t op) {
 	int i = 0;
 
-	mb_func_t funcs[] = {
+	MBCONST mb_func_t funcs[] = {
 		_core_add,
 		_core_min,
 		_core_mul,
@@ -3446,12 +3525,13 @@ static _object_t* _operate_operand(mb_interpreter_t* s, _object_t* optr, _object
 		if(_status != MB_FUNC_WARNING) {
 			safe_free(result);
 		}
-		_set_current_error(s, SE_RN_OPERATION_FAILED, 0);
+		if(_set_current_error(s, SE_RN_OPERATION_FAILED, 0)) {
 #ifdef MB_ENABLE_SOURCE_TRACE
-		_set_error_pos(s, optr->source_pos, optr->source_row, optr->source_col);
+			_set_error_pos(s, optr->source_pos, optr->source_row, optr->source_col);
 #else /* MB_ENABLE_SOURCE_TRACE */
-		_set_error_pos(s, 0, 0, 0);
+			_set_error_pos(s, 0, 0, 0);
 #endif /* MB_ENABLE_SOURCE_TRACE */
+		}
 	}
 
 	return result;
@@ -3562,7 +3642,7 @@ static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val
 
 			(*val)->type = _DT_STRING;
 			(*val)->data.string = c->data.string;
-			(*val)->ref = true;
+			(*val)->is_ref = true;
 			ast = ast->next;
 
 			goto _exit;
@@ -3610,7 +3690,7 @@ static int _calc_expression(mb_interpreter_t* s, _ls_node_t** l, _object_t** val
 				}
 			} else {
 				if(c->type == _DT_ARRAY) {
-					unsigned int arr_idx = 0;
+					unsigned arr_idx = 0;
 					mb_value_u arr_val;
 					_data_e arr_type;
 					_object_t* arr_elem = 0;
@@ -3637,7 +3717,7 @@ _array:
 						arr_elem = _create_object();
 						_ls_pushback(garbage, arr_elem);
 						arr_elem->type = arr_type;
-						arr_elem->ref = true;
+						arr_elem->is_ref = true;
 						_COPY_BYTES(arr_elem->data.bytes, arr_val.bytes);
 						if(f) {
 							_handle_error_on_obj(s, SE_RN_OPERATOR_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _error, result);
@@ -3674,7 +3754,7 @@ _array:
 					_ls_pushback(garbage, c);
 					result = _public_value_to_internal_object(&running->intermediate_value, c);
 					if(c->type == _DT_STRING)
-						c->ref = true;
+						c->is_ref = true;
 					if(result != MB_FUNC_OK)
 						goto _error;
 					if(f) {
@@ -3721,6 +3801,8 @@ _routine:
 #endif /* MB_ENABLE_CLASS */
 					if(ast)
 						ast = ast->prev;
+					if(result == MB_FUNC_END)
+						goto _error;
 					if(result != MB_FUNC_OK) {
 						_handle_error_on_obj(s, SE_RN_CALCULATION_ERROR, s->source_file, DON(ast), MB_FUNC_ERR, _error, result);
 					}
@@ -3735,7 +3817,7 @@ _routine:
 					_ls_pushback(opnd, c);
 					f++;
 				} else if(c->type == _DT_VAR && c->data.variable->data->type == _DT_ARRAY) {
-					unsigned int arr_idx = 0;
+					unsigned arr_idx = 0;
 					mb_value_u arr_val;
 					_data_e arr_type;
 					_object_t* arr_elem = 0;
@@ -3755,7 +3837,7 @@ _routine:
 						arr_elem = _create_object();
 						_ls_pushback(garbage, arr_elem);
 						arr_elem->type = arr_type;
-						arr_elem->ref = true;
+						arr_elem->is_ref = true;
 						if(arr_type == _DT_INT) {
 							arr_elem->data.integer = arr_val.integer;
 						} else if(arr_type == _DT_REAL) {
@@ -3785,12 +3867,27 @@ _routine:
 							0
 						);
 						if(cs) {
-							c = (_object_t*)cs->data;
-							if(c && c->type == _DT_VAR && c->data.variable->data->type == _DT_ROUTINE)
-								c = c->data.variable->data;
-							if(ast && ast && _IS_FUNC(ast->data, _core_open_bracket)) {
-								if(c && c->type == _DT_ROUTINE)
-									goto _routine;
+#ifdef MB_ENABLE_USERTYPE_REF
+							_ls_node_t* fn = ast;
+							if(fn) fn = fn->prev;
+							if(_try_call_func_on_usertype_ref(s, &fn, c, cs, 0)) {
+								ast = fn;
+								c = _create_object();
+								_ls_pushback(garbage, c);
+								_public_value_to_internal_object(&running->intermediate_value, c);
+								_REF(c)
+							} else {
+#else /* MB_ENABLE_USERTYPE_REF */
+							{
+#endif /* MB_ENABLE_USERTYPE_REF */
+								c = (_object_t*)cs->data;
+								if(c && c->type == _DT_VAR && c->data.variable->data->type == _DT_ROUTINE) {
+									c = c->data.variable->data;
+								}
+								if(ast && ast && _IS_FUNC(ast->data, _core_open_bracket)) {
+									if(c && c->type == _DT_ROUTINE)
+										goto _routine;
+								}
 							}
 						}
 #ifdef MB_ENABLE_CLASS
@@ -3839,7 +3936,7 @@ _var:
 										_ls_pushback(garbage, c);
 										_public_value_to_internal_object(&ret, c);
 
-										ast = (_ls_node_t*)*l;
+										ast = *l;
 									}
 
 									break;
@@ -3922,13 +4019,13 @@ _var:
 		(*val)->type = c->data.variable->data->type;
 		(*val)->data = c->data.variable->data->data;
 		if(_is_string(c))
-			(*val)->ref = true;
+			(*val)->is_ref = true;
 	} else {
 		(*val)->type = c->type;
 		if(_is_string(c)) {
 			char* _str = _extract_string(c);
 			(*val)->data.string = mb_strdup(_str, strlen(_str) + 1);
-			(*val)->ref = false;
+			(*val)->is_ref = false;
 		} else if(c->type == _DT_ARRAY) {
 			(*val)->data = c->data;
 			c->type = _DT_NIL;
@@ -3989,6 +4086,16 @@ static int _pop_arg(mb_interpreter_t* s, _ls_node_t** l, mb_value_t* va, unsigne
 	_ls_node_t* ast = *l;
 
 	mb_make_nil(*arg);
+#ifdef _MULTILINE_STATEMENT
+	if(_multiline_statement(s)) {
+		_object_t* obj = 0;
+		obj = (_object_t*)ast->data;
+		while(obj && obj->type == _DT_EOS) {
+			ast = ast->next;
+			obj = (_object_t*)ast->data;
+		}
+	}
+#endif /* _MULTILINE_STATEMENT */
 	if(ast && ast->data && _IS_FUNC(ast->data, _core_args)) {
 		if(args) {
 			_object_t* obj = (_object_t*)_ls_popfront(args);
@@ -4043,17 +4150,17 @@ static int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* r
 				var = obj->data.variable;
 
 				if(proc_ref)
-					var->data->ref = false;
+					var->data->is_ref = false;
 			} else {
 				rnode = _search_identifier_in_scope_chain(s, running, var->name, _PATHING_NONE, 0, 0);
 				if(rnode)
 					var = ((_object_t*)rnode->data)->data.variable;
 
 				if(proc_ref)
-					var->data->ref = true;
+					var->data->is_ref = true;
 			}
 
-			if(!pop_arg && var->data->type == _DT_STRING && !var->data->ref)
+			if(!pop_arg && var->data->type == _DT_STRING && !var->data->is_ref)
 				_mark_lazy_destroy_string(s, var->data->data.string);
 			result = _public_value_to_internal_object(&arg, var->data);
 
@@ -4076,6 +4183,8 @@ static int _proc_args(mb_interpreter_t* s, _ls_node_t** l, _running_context_t* r
 				if(var_args) {
 					_object_t* obj = _create_object();
 					result = _public_value_to_internal_object(&arg, obj);
+					if(obj->type == _DT_ROUTINE && obj->data.routine->type == _IT_SCRIPT)
+						obj->is_ref = true;
 					_ls_pushback(var_args, obj);
 				}
 
@@ -4164,7 +4273,7 @@ static int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 	mb_assert(s && l && r);
 
 	if(!va && s->last_routine && !s->last_routine->func.basic.parameters && (s->last_routine->name == r->name || !strcmp(s->last_routine->name, r->name))) {
-		ast = (_ls_node_t*)*l;
+		ast = *l;
 		_skip_to(s, &ast, 0, _DT_EOS);
 		if(ast && ((_object_t*)ast->data)->type == _DT_EOS)
 			ast = ast->next;
@@ -4202,7 +4311,7 @@ static int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 		_mb_check_mark(mb_attempt_close_bracket(s, (void**)l), result, _error);
 	}
 
-	ast = (_ls_node_t*)*l;
+	ast = *l;
 	_ls_pushback(s->sub_stack, ast);
 
 #ifdef MB_ENABLE_CLASS
@@ -4224,7 +4333,7 @@ static int _eval_script_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 
 	do {
 		result = _execute_statement(s, l, true);
-		ast = (_ls_node_t*)*l;
+		ast = *l;
 		if(result == MB_SUB_RETURN) {
 			result = MB_FUNC_OK;
 
@@ -4307,8 +4416,11 @@ static int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 	}
 
 	running = _link_lambda_scope_chain(s, &r->func.lambda, true);
+	if(!running) {
+		_handle_error_on_obj(s, SE_RN_INVALID_ROUTINE, s->source_file, DON2(l), MB_FUNC_ERR, _error, result);
+	}
 	result = _proc_args(s, l, running, va, ca, r, has_arg, pop_arg, true, lastv);
-	ast = (_ls_node_t*)*l;
+	ast = *l;
 	if(result != MB_FUNC_OK) {
 		_unlink_lambda_scope_chain(s, &r->func.lambda, true);
 
@@ -4320,7 +4432,7 @@ static int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 		_mb_check_mark(mb_attempt_close_bracket(s, (void**)l), result, _error);
 	}
 
-	ast = (_ls_node_t*)*l;
+	ast = *l;
 	_ls_pushback(s->sub_stack, ast);
 
 	running = _link_lambda_scope_chain(s, &r->func.lambda, false);
@@ -4332,7 +4444,7 @@ static int _eval_lambda_routine(mb_interpreter_t* s, _ls_node_t** l, mb_value_t*
 
 	do {
 		result = _execute_statement(s, l, true);
-		ast = (_ls_node_t*)*l;
+		ast = *l;
 		if(result == MB_SUB_RETURN) {
 			result = MB_FUNC_OK;
 
@@ -4479,9 +4591,9 @@ static mb_meta_status_u _try_overridden(mb_interpreter_t* s, void** l, mb_value_
 		_MAKE_NIL(&obj);
 		_public_value_to_internal_object(d, &obj);
 		if(t == MB_MF_COLL && obj.data.usertype_ref->coll_func)
-			return obj.data.usertype_ref->coll_func(s, l, f);
+			return obj.data.usertype_ref->coll_func(s, l, d, f);
 		else if(t == MB_MF_FUNC && obj.data.usertype_ref->generic_func)
-			return obj.data.usertype_ref->generic_func(s, l, f);
+			return obj.data.usertype_ref->generic_func(s, l, d, f);
 	}
 #endif /* MB_ENABLE_USERTYPE_REF */
 #ifdef MB_ENABLE_CLASS
@@ -4502,12 +4614,12 @@ static mb_meta_status_u _try_overridden(mb_interpreter_t* s, void** l, mb_value_
 				if(ast)
 					*l = ast->prev;
 
-				return MB_MS_DONE | MB_MS_RETURNED;
+				return (mb_meta_status_u)(MB_MS_DONE | MB_MS_RETURNED);
 			}
 		}
 	}
 #endif /* MB_ENABLE_CLASS */
-#if !defined MB_ENABLE_USERTYPE_REF && !defined MB_ENABLE_CLASS
+#if !defined MB_ENABLE_USERTYPE_REF || !defined MB_ENABLE_CLASS
 	mb_unrefvar(t);
 #endif /* !MB_ENABLE_USERTYPE_REF && !MB_ENABLE_CLASS */
 
@@ -4517,13 +4629,17 @@ static mb_meta_status_u _try_overridden(mb_interpreter_t* s, void** l, mb_value_
 /** Handlers */
 
 /* Set current error information */
-static void _set_current_error(mb_interpreter_t* s, mb_error_e err, char* f) {
+static bool_t _set_current_error(mb_interpreter_t* s, mb_error_e err, char* f) {
 	mb_assert(s && err >= 0);
 
 	if(s->last_error == SE_NO_ERR) {
 		s->last_error = err;
 		s->last_error_file = f;
+
+		return true;
 	}
+
+	return false;
 }
 
 /* Get a print functor of an interpreter */
@@ -4546,11 +4662,37 @@ static mb_input_func_t _get_inputer(mb_interpreter_t* s) {
 	return mb_gets;
 }
 
+/* Print a string */
+static void _print_string(mb_interpreter_t* s, _object_t* obj) {
+#if defined MB_CP_VC && defined MB_ENABLE_UNICODE
+	char* loc = 0;
+	char* str = 0;
+	_dynamic_buffer_t buf;
+	size_t lbuf = 0;
+
+	mb_assert(s && obj);
+
+	loc = setlocale(LC_ALL, "");
+	str = obj->data.string ? obj->data.string : MB_NULL_STRING;
+	_INIT_BUF(buf);
+	while((lbuf = (size_t)mb_bytes_to_wchar(str, &_WCHAR_BUF_PTR(buf), _WCHARS_OF_BUF(buf))) > _WCHARS_OF_BUF(buf)) {
+		_RESIZE_WCHAR_BUF(buf, lbuf);
+	}
+	_get_printer(s)("%ls", _WCHAR_BUF_PTR(buf));
+	_DISPOSE_BUF(buf);
+	setlocale(LC_ALL, loc);
+#else /* MB_CP_VC && MB_ENABLE_UNICODE */
+	mb_assert(s && obj);
+
+	_get_printer(s)("%s", obj->data.string ? obj->data.string : MB_NULL_STRING);
+#endif /* MB_CP_VC && MB_ENABLE_UNICODE */
+}
+
 /** Parsing helpers */
 
 /* Read all content of a file into a buffer */
 static char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix) {
-#ifndef MB_CP_ARDUINO
+#ifndef MB_DISABLE_LOAD_FILE
 	FILE* fp = 0;
 	char* buf = 0;
 	long curpos = 0;
@@ -4598,9 +4740,9 @@ static char* _load_file(mb_interpreter_t* s, const char* f, const char* prefix) 
 	}
 
 	return buf;
-#else /* MB_CP_ARDUINO */
+#else /* MB_DISABLE_LOAD_FILE */
 	return 0;
-#endif /* MB_CP_ARDUINO */
+#endif /* MB_DISABLE_LOAD_FILE */
 }
 
 /* Finish loading a file */
@@ -4681,7 +4823,7 @@ static bool_t _is_exponential_char(char c) {
 }
 
 /* Determine whether a character is module using char */
-static bool_t _is_using_char(char c) {
+static bool_t _is_using_at_char(char c) {
 	return (c == '@');
 }
 
@@ -4799,7 +4941,7 @@ static int _append_symbol(mb_interpreter_t* s, char* sym, bool_t* delsym, int po
 		mb_unrefvar(row);
 		mb_unrefvar(col);
 
-		obj->source_pos = (char)pos;
+		obj->source_pos = (char)!!pos;
 #endif /* MB_ENABLE_SOURCE_TRACE */
 
 		node = _ls_pushback(ast, obj);
@@ -4825,7 +4967,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 		_routine_t* routine; _var_t* var; _label_t* label; real_t float_point; int_t integer; _raw_t any;
 	} tmp;
 	_raw_t value;
-	unsigned int ul = 0;
+	unsigned ul = 0;
 	_parsing_context_t* context = 0;
 	_running_context_t* running = 0;
 	_ls_node_t* glbsyminscope = 0;
@@ -4898,7 +5040,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, _PATHING_NONE, 0, 0);
 		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_ARRAY) {
 			(*obj)->data.array = ((_object_t*)glbsyminscope->data)->data.array;
-			(*obj)->ref = true;
+			(*obj)->is_ref = true;
 			*delsym = true;
 		} else {
 			tmp.array = _create_array(s, sym, _DT_UNKNOWN);
@@ -4911,7 +5053,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 			*obj = _create_object();
 			(*obj)->type = type;
 			(*obj)->data.array = tmp.array;
-			(*obj)->ref = true;
+			(*obj)->is_ref = true;
 		}
 
 		break;
@@ -4920,7 +5062,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, _PATHING_NONE, 0, 0);
 		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_CLASS) {
 			(*obj)->data.instance = ((_object_t*)glbsyminscope->data)->data.instance;
-			(*obj)->ref = true;
+			(*obj)->is_ref = true;
 			*delsym = true;
 			if(running != (*obj)->data.instance->scope &&
 				(context->class_state != _CLASS_STATE_NONE) &&
@@ -4945,7 +5087,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 			*obj = _create_object();
 			(*obj)->type = type;
 			(*obj)->data.instance = tmp.instance;
-			(*obj)->ref = true;
+			(*obj)->is_ref = true;
 		}
 
 		break;
@@ -4954,7 +5096,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 		glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, _PATHING_NONE, 0, 0);
 		if(glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_ROUTINE) {
 			(*obj)->data.routine = ((_object_t*)glbsyminscope->data)->data.routine;
-			(*obj)->ref = true;
+			(*obj)->is_ref = true;
 			*delsym = true;
 			if(running != (*obj)->data.routine->func.basic.scope &&
 				context->routine_state &&
@@ -4977,7 +5119,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 			*obj = _create_object();
 			(*obj)->type = type;
 			(*obj)->data.routine = tmp.routine;
-			(*obj)->ref = true;
+			(*obj)->is_ref = true;
 
 #ifdef MB_ENABLE_CLASS
 			tmp.routine->instance = s->last_instance;
@@ -4986,7 +5128,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 
 		break;
 	case _DT_VAR:
-		if(context->routine_params_state)
+		if(context->routine_params_state == _ROUTINE_STATE_PARAMS)
 			glbsyminscope = _ht_find(running->var_dict, sym);
 		else
 			glbsyminscope = _search_identifier_in_scope_chain(s, 0, sym, _PATHING_NONE, 0, 0);
@@ -4995,13 +5137,13 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 #endif /* MB_ENABLE_CLASS */
 		if(!is_field && glbsyminscope && ((_object_t*)glbsyminscope->data)->type == _DT_VAR) {
 			(*obj)->data.variable = ((_object_t*)glbsyminscope->data)->data.variable;
-			(*obj)->ref = true;
+			(*obj)->is_ref = true;
 			*delsym = true;
 		} else {
 #ifdef MB_ENABLE_CLASS
 			if(strcmp(sym, _CLASS_ME) == 0) {
 				_handle_error_now(s, SE_RN_CANNOT_CHANGE_ME, s->source_file, MB_FUNC_ERR);
-				(*obj)->ref = true;
+				(*obj)->is_ref = true;
 				*delsym = true;
 
 				goto _exit;
@@ -5017,7 +5159,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 			if(context->class_state != _CLASS_STATE_NONE)
 				tmp.var->pathing = true;
 			else if(!is_field)
-				tmp.var->pathing = context->current_symbol_contains_accessor;
+				tmp.var->pathing = !!context->current_symbol_contains_accessor;
 #endif /* MB_ENABLE_CLASS */
 			(*obj)->data.variable = tmp.var;
 
@@ -5027,7 +5169,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 			*obj = _create_object();
 			(*obj)->type = type;
 			(*obj)->data.variable = tmp.var;
-			(*obj)->ref = true;
+			(*obj)->is_ref = true;
 		}
 
 		break;
@@ -5035,7 +5177,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 		if(context->current_char == ':') {
 			if(mb_memtest(value, sizeof(_raw_t))) {
 				memcpy(&((*obj)->data.label), value, sizeof((*obj)->data.label));
-				(*obj)->ref = true;
+				(*obj)->is_ref = true;
 				*delsym = true;
 			} else {
 				tmp.label = (_label_t*)mb_malloc(sizeof(_label_t));
@@ -5050,7 +5192,7 @@ static int _create_symbol(mb_interpreter_t* s, _ls_node_t* l, char* sym, _object
 				*obj = _create_object();
 				(*obj)->type = type;
 				(*obj)->data.label = tmp.label;
-				(*obj)->ref = true;
+				(*obj)->is_ref = true;
 			}
 		} else {
 			(*obj)->data.label = (_label_t*)mb_malloc(sizeof(_label_t));
@@ -5130,9 +5272,10 @@ static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 			sym[_sl - 1] = _ZERO_CHAR;
 			context->parsing_state = _PS_NORMAL;
 			/* Using a module */
-			if(_is_using_char(*(sym + 1))) {
+			if(_is_using_at_char(*(sym + 1))) {
 #ifdef MB_ENABLE_MODULE
 				char* ns = mb_strdup(sym + 2, strlen(sym + 2) + 1);
+				mb_strupr(ns);
 				if(_ls_find(s->using_modules, ns, (_ls_compare)_ht_cmp_string, 0)) {
 					safe_free(ns);
 				} else {
@@ -5160,15 +5303,23 @@ static _data_e _get_symbol_type(mb_interpreter_t* s, char* sym, _raw_t* value) {
 			} else {
 				if(!_ls_find(context->imported, (void*)(sym + 1), (_ls_compare)_ht_cmp_string, 0)) {
 					if(s->import_handler) {
-						_object_t* sep = _create_object();
+						_object_t* sep = 0;
+						char* lf = 0;
+						int pos; unsigned short row, col;
+						sep = _create_object();
 						sep->type = _DT_SEP;
 						sep->data.separator = ':';
 						_ls_pushback(s->ast, sep);
-						if(s->import_handler(s, sym + 1) == MB_FUNC_OK) {
-							_ls_pushback(context->imported, mb_strdup(sym + 1, strlen(sym + 1) + 1));
-						} else {
+						_ls_pushback(context->imported, mb_strdup(sym + 1, strlen(sym + 1) + 1));
+						lf = (char*)(_ls_back(context->imported)->data);
+						lf = _prev_import(s, lf, &pos, &row, &col);
+						if(s->import_handler(s, sym + 1) != MB_FUNC_OK) {
+							_ls_node_t* last = _ls_back(context->imported);
+							_destroy_memory(last->data, last->extra);
+							_ls_popback(context->imported);
 							_handle_error_now(s, SE_PS_OPEN_FILE_FAILED, s->source_file, MB_FUNC_ERR);
 						}
+						_post_import(s, lf, &pos, &row, &col);
 					} else {
 						_handle_error_now(s, SE_PS_OPEN_FILE_FAILED, s->source_file, MB_FUNC_ERR);
 					}
@@ -5191,6 +5342,14 @@ _end_import:
 		memcpy(*value, tmp.any, sizeof(_raw_t));
 
 		result = _DT_NIL;
+
+		goto _exit;
+	}
+	/* REM */
+	if(!strcmp(sym, _REMARK_STR)) {
+		context->parsing_state = _PS_COMMENT;
+
+		result = _DT_EOS;
 
 		goto _exit;
 	}
@@ -5329,10 +5488,11 @@ _end_import:
 	glbsyminscope = _find_func(s, sym, &mod);
 	if(glbsyminscope) {
 		if(context->last_symbol && context->last_symbol->type == _DT_ROUTINE) {
-			if(_sl == 1 && sym[0] == '(')
-				_begin_routine_parameter_list(s);
-		}
-		if(context->routine_params_state) {
+			if(_sl == 1 && sym[0] == '(') {
+				if(context->routine_params_state == _ROUTINE_STATE_DEF)
+					_begin_routine_parameter_list(s);
+			}
+		} else if(context->routine_params_state == _ROUTINE_STATE_PARAMS) {
 			if(_sl == 1 && sym[0] == ')')
 				_end_routine_parameter_list(s);
 		}
@@ -5345,10 +5505,14 @@ _end_import:
 		} else {
 			ptr = (intptr_t)glbsyminscope->data;
 			memcpy(*value, &ptr, sizeof(intptr_t));
+			if(ptr == (intptr_t)_core_def)
+				_begin_routine_definition(s);
 		}
 #else /* MB_ENABLE_MODULE */
 		ptr = (intptr_t)glbsyminscope->data;
 		memcpy(*value, &ptr, sizeof(intptr_t));
+		if(ptr == (intptr_t)_core_def)
+			_begin_routine_definition(s);
 #endif /* MB_ENABLE_MODULE */
 
 		result = _DT_FUNC;
@@ -5601,14 +5765,14 @@ static char* _prev_import(mb_interpreter_t* s, char* lf, int* pos, unsigned shor
 
 	obj = _create_object();
 	obj->type = _DT_EOS;
-	obj->ref = false;
+	obj->is_ref = false;
 	_ls_pushback(s->ast, obj);
 
 	info = (_import_info_t*)mb_malloc(sizeof(_import_info_t));
 	info->source_file = lf ? mb_strdup(lf, strlen(lf) + 1) : 0;
 	obj = _create_object();
 	obj->type = _DT_PREV_IMPORT;
-	obj->ref = false;
+	obj->is_ref = false;
 	obj->data.import_info = info;
 	_ls_pushback(s->ast, obj);
 
@@ -5648,7 +5812,7 @@ static char* _post_import(mb_interpreter_t* s, char* lf, int* pos, unsigned shor
 	info->source_file = lf ? mb_strdup(lf, strlen(lf) + 1) : 0;
 	obj = _create_object();
 	obj->type = _DT_POST_IMPORT;
-	obj->ref = false;
+	obj->is_ref = false;
 	obj->data.import_info = info;
 	_ls_pushback(s->ast, obj);
 
@@ -5757,6 +5921,40 @@ static char* _extract_string(_object_t* obj) {
 	return result;
 }
 
+#ifdef MB_MANUAL_REAL_FORMATTING
+/* Convert a real number to string */
+static void _real_to_str(real_t r, char* str, size_t size, size_t afterpoint) {
+	size_t pos = 0;
+	size_t len = 0;
+	char curr[4];
+	int val = (int)r;
+	char dot = 0;
+
+	itoa(val, str, 10);
+	if(r < 0) {
+		r *= -1;
+		val *= -1;
+	}
+	pos = len = strlen(str);
+	while(pos < size - 1) {
+		r = r - (real_t)val;
+		if(r == 0.0)
+			break;
+		if(!dot) {
+			dot = 1;
+			str[pos++] = '.';
+		}
+		r *= 10;
+		val = (int)r;
+		itoa(val, curr, 10);
+		str[pos++] = *curr;
+		if(--afterpoint == 0)
+			break;
+	}
+	str[pos] = '\0';
+}
+#endif /* MB_MANUAL_REAL_FORMATTING */
+
 #ifdef _HAS_REF_OBJ_LOCK
 /* Lock a referenced object */
 static bool_t _lock_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
@@ -5808,7 +6006,6 @@ static bool_t _write_on_ref_object(_lock_t* lk, _ref_t* ref, void* obj) {
 /* Increase the reference of a stub by 1 */
 static _ref_count_t _ref(_ref_t* ref, void* data) {
 	_ref_count_t before = *ref->count;
-
 	mb_unrefvar(data);
 
 	++(*ref->count);
@@ -5850,7 +6047,6 @@ static bool_t _unref(_ref_t* ref, void* data) {
 /* Increase the weak reference of a stub by 1 */
 static _ref_count_t _weak_ref(_ref_t* ref, void* data, _ref_t* weak) {
 	_ref_count_t before = *ref->weak_count;
-
 	mb_unrefvar(data);
 
 	++(*ref->weak_count);
@@ -5972,6 +6168,14 @@ static int _gc_add_reachable(void* data, void* extra, void* h) {
 	case _DT_USERTYPE_REF:
 		if(!_ht_find(ht, &obj->data.usertype_ref->ref))
 			_ht_set_or_insert(ht, &obj->data.usertype_ref->ref, obj->data.usertype_ref);
+#ifdef MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF
+		if(obj->data.usertype_ref->alive_checker) {
+			mb_value_t val;
+			mb_make_nil(val);
+			_internal_object_to_public_value(obj, &val);
+			obj->data.usertype_ref->alive_checker(obj->data.usertype_ref->ref.s, h, val, _gc_alive_marker);
+		}
+#endif /* MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF */
 
 		break;
 #endif /* MB_ENABLE_USERTYPE_REF */
@@ -6066,6 +6270,18 @@ static void _gc_get_reachable(mb_interpreter_t* s, _ht_node_t* ht) {
 
 		running = running->prev;
 	}
+}
+
+/* Alive marker functor of a value */
+static void _gc_alive_marker(mb_interpreter_t* s, void* h, mb_value_t val) {
+	_ht_node_t* ht = 0;
+	_object_t obj;
+	mb_unrefvar(s);
+
+	ht = (_ht_node_t*)h;
+	_MAKE_NIL(&obj);
+	_public_value_to_internal_object(&val, &obj);
+	_gc_add_reachable(&obj, 0, h);
 }
 
 /* Destroy only the capsule (wrapper) of an object, leave the data behind, and add it to GC if possible */
@@ -6391,6 +6607,47 @@ static void _unref_usertype_ref(_ref_t* ref, void* data) {
 	if(*ref->count == _NONE_REF)
 		_destroy_usertype_ref((_usertype_ref_t*)data);
 }
+
+/* Try to call a registered function on a referenced usertype */
+static bool_t _try_call_func_on_usertype_ref(mb_interpreter_t* s, _ls_node_t** ast, _object_t* obj, _ls_node_t* pathed, int* ret) {
+	_object_t* tmp = (_object_t*)pathed->data;
+	if(tmp && tmp->type == _DT_VAR && tmp->data.variable->data->type == _DT_USERTYPE_REF) {
+		bool_t mod = false;
+		_ls_node_t* fn = 0;
+		mb_func_t func = 0;
+		char* r = strrchr(obj->data.variable->name, '.');
+		if(!r) return false;
+		++r;
+		fn = _find_func(s, r, &mod);
+		if(fn && fn->data) {
+#ifdef MB_ENABLE_MODULE
+			if(mod) {
+				_module_func_t* mp = (_module_func_t*)fn->data;
+				func = (mb_func_t)(intptr_t)mp->func;
+			} else {
+				func = (mb_func_t)(intptr_t)fn->data;
+			}
+#else /* MB_ENABLE_MODULE */
+			func = (mb_func_t)(intptr_t)fn->data;
+#endif /* MB_ENABLE_MODULE */
+			s->usertype_ref_ahead = (_object_t*)tmp->data.variable->data;
+#ifdef MB_ENABLE_STACK_TRACE
+			_ls_pushback(s->stack_frames, r);
+#endif /* MB_ENABLE_STACK_TRACE */
+			if(ret)
+				*ret = (func)(s, (void**)ast);
+			else
+				(func)(s, (void**)ast);
+#ifdef MB_ENABLE_STACK_TRACE
+			_ls_popback(s->stack_frames);
+#endif /* MB_ENABLE_STACK_TRACE */
+
+			return true;
+		}
+	}
+
+	return false;
+}
 #endif /* MB_ENABLE_USERTYPE_REF */
 
 /* Create an array */
@@ -6453,7 +6710,7 @@ static void _init_array(_array_t* arr) {
 #ifndef MB_SIMPLE_ARRAY
 	arr->types = (_data_e*)mb_malloc(sizeof(_data_e) * arr->count);
 	if(arr->types) {
-		unsigned int ul = 0;
+		unsigned ul = 0;
 		for(ul = 0; ul < arr->count; ++ul)
 			arr->types[ul] = _DT_INT;
 	}
@@ -6463,7 +6720,7 @@ static void _init_array(_array_t* arr) {
 /* Clone an array */
 static _array_t* _clone_array(mb_interpreter_t* s, _array_t* arr) {
 	_array_t* result = 0;
-	unsigned int index = 0;
+	unsigned index = 0;
 	mb_value_u val;
 	_data_e type = _DT_NIL;
 
@@ -6486,7 +6743,7 @@ static _array_t* _clone_array(mb_interpreter_t* s, _array_t* arr) {
 static int _get_array_pos(mb_interpreter_t* s, _array_t* arr, int* d, int c) {
 	int result = 0;
 	int i = 0;
-	int n = 0;
+	unsigned n = 0;
 	int f = 1;
 
 	mb_assert(s && arr && d);
@@ -6498,7 +6755,7 @@ static int _get_array_pos(mb_interpreter_t* s, _array_t* arr, int* d, int c) {
 	}
 	for(i = 0; i < c; i++) {
 		n = d[i];
-		if(n < 0 || n >= arr->dimensions[i]) {
+		if(n >= arr->dimensions[i]) {
 			result = -1;
 
 			goto _exit;
@@ -6512,7 +6769,7 @@ _exit:
 }
 
 /* Calculate the true index of an array, used when walking through an AST */
-static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, unsigned int* index, bool_t* literally) {
+static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, unsigned* index, bool_t* literally) {
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
 	_object_t* arr = 0;
@@ -6522,7 +6779,7 @@ static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, u
 	mb_value_u val;
 	int dcount = 0;
 	int f = 1;
-	unsigned int idx = 0;
+	unsigned idx = 0;
 
 	mb_assert(s && l && index);
 
@@ -6532,7 +6789,7 @@ static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, u
 	if(literally) *literally = false;
 
 	/* Array name */
-	ast = (_ls_node_t*)*l;
+	ast = *l;
 	if(!c && ast && _is_array(ast->data))
 		c = (_object_t*)ast->data;
 	if(!_is_array(c)) {
@@ -6577,10 +6834,10 @@ static int _get_array_index(mb_interpreter_t* s, _ls_node_t** l, _object_t* c, u
 		if(dcount + 1 > arr->data.array->dimension_count) {
 			_handle_error_on_obj(s, SE_RN_DIMENSION_COUNT_OUT_OF_BOUND, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
-		if((int)val.integer >= arr->data.array->dimensions[dcount]) {
+		if((unsigned)val.integer >= arr->data.array->dimensions[dcount]) {
 			_handle_error_on_obj(s, SE_RN_INDEX_OUT_OF_BOUND, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 		}
-		idx += (unsigned int)val.integer * f;
+		idx += (unsigned)val.integer * f;
 		/* Comma? */
 		if(_IS_SEP(ast->data, ','))
 			ast = ast->next;
@@ -6600,18 +6857,17 @@ _exit:
 }
 
 /* Get the value of an element in an array */
-static bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type) {
+static bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned index, mb_value_u* val, _data_e* type) {
 	bool_t result = true;
 	int_t elemsize = 0;
-	unsigned int pos = 0;
+	unsigned pos = 0;
 	void* rawptr = 0;
 
 	mb_assert(s && arr && val && type);
-
 	mb_assert(index < arr->count);
 
 	elemsize = _get_size_of(arr->type);
-	pos = (unsigned int)(elemsize * index);
+	pos = (unsigned)(elemsize * index);
 	rawptr = (void*)((intptr_t)arr->raw + pos);
 	if(arr->type == _DT_REAL) {
 #ifdef MB_SIMPLE_ARRAY
@@ -6632,19 +6888,18 @@ static bool_t _get_array_elem(mb_interpreter_t* s, _array_t* arr, unsigned int i
 }
 
 /* Set the value of an element in an array */
-static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, unsigned int index, mb_value_u* val, _data_e* type) {
+static int _set_array_elem(mb_interpreter_t* s, _ls_node_t* ast, _array_t* arr, unsigned index, mb_value_u* val, _data_e* type) {
 	int result = MB_FUNC_OK;
 	int_t elemsize = 0;
-	unsigned int pos = 0;
+	unsigned pos = 0;
 	void* rawptr = 0;
 	mb_unrefvar(ast);
 
 	mb_assert(s && arr && val);
-
 	mb_assert(index < arr->count);
 
 	elemsize = _get_size_of(arr->type);
-	pos = (unsigned int)(elemsize * index);
+	pos = (unsigned)(elemsize * index);
 	rawptr = (void*)((intptr_t)arr->raw + pos);
 #ifdef MB_SIMPLE_ARRAY
 	switch(*type) {
@@ -6697,9 +6952,9 @@ _exit:
 static void _clear_array(_array_t* arr) {
 	char* str = 0;
 	int_t elemsize = 0;
-	unsigned int pos = 0;
+	unsigned pos = 0;
 	void* rawptr = 0;
-	unsigned int ul = 0;
+	unsigned ul = 0;
 
 	mb_assert(arr);
 
@@ -6707,14 +6962,19 @@ static void _clear_array(_array_t* arr) {
 #ifndef MB_SIMPLE_ARRAY
 		if(arr->type == _DT_REAL) {
 			for(ul = 0; ul < arr->count; ++ul) {
+				elemsize = _get_size_of(arr->type);
+				pos = (unsigned)(elemsize * ul);
+				rawptr = (void*)((intptr_t)arr->raw + pos);
 				if(arr->types[ul] == _DT_STRING) {
-					elemsize = _get_size_of(arr->type);
-					pos = (unsigned int)(elemsize * ul);
-					rawptr = (void*)((intptr_t)arr->raw + pos);
 					str = *((char**)rawptr);
 					if(str) {
 						safe_free(str);
 					}
+				} else {
+					_object_t obj;
+					obj.type = arr->types[ul];
+					_COPY_BYTES(obj.data.bytes, rawptr);
+					_dispose_object(&obj);
 				}
 			}
 		}
@@ -6722,7 +6982,7 @@ static void _clear_array(_array_t* arr) {
 		if(arr->type == _DT_STRING) {
 			for(ul = 0; ul < arr->count; ++ul) {
 				elemsize = _get_size_of(arr->type);
-				pos = (unsigned int)(elemsize * ul);
+				pos = (unsigned)(elemsize * ul);
 				rawptr = (void*)((intptr_t)arr->raw + pos);
 				str = *((char**)rawptr);
 				if(str) {
@@ -7457,7 +7717,7 @@ static void _init_class(mb_interpreter_t* s, _class_t* instance, char* n) {
 	me->data->type = _DT_CLASS;
 	me->data->data.instance = instance;
 	me->pathing = true;
-	me->isme = true;
+	me->is_me = true;
 	_ht_set_or_insert(instance->scope->var_dict, me->name, meobj);
 }
 
@@ -7639,7 +7899,7 @@ static int _clone_clsss_field(void* data, void* extra, void* n) {
 		if(!_ht_find(instance->scope->var_dict, arr->name)) {
 			ret = _create_object();
 			ret->type = _DT_ARRAY;
-			ret->ref = false;
+			ret->is_ref = false;
 			_clone_object(instance->ref.s, obj, ret, false, false);
 
 			_ht_set_or_insert(instance->scope->var_dict, ret->data.array->name, ret);
@@ -7653,7 +7913,7 @@ static int _clone_clsss_field(void* data, void* extra, void* n) {
 			ret = _create_object();
 			ret->type = _DT_ROUTINE;
 			ret->data.routine = routine;
-			ret->ref = false;
+			ret->is_ref = false;
 
 			_ht_set_or_insert(instance->scope->var_dict, obj->data.routine->name, ret);
 		}
@@ -7680,7 +7940,7 @@ static bool_t _clone_class_meta_link(_class_t* meta, void* n, void* ret) {
 }
 
 /* Search for a meta function with a specific name and assign to a member field */
-static int _search_class_meta_function(mb_interpreter_t* s, _class_t* instance, const char* n, _routine_t** f) {
+static int _search_class_meta_function(mb_interpreter_t* s, _class_t* instance, const char* n, _routine_t* _mb_unaligned * f) {
 	_ls_node_t* node = 0;
 
 	mb_assert(s);
@@ -7803,10 +8063,11 @@ _exit:
 /* Call the TOSTRING function of a class instance to format it */
 static int _format_class_to_string(mb_interpreter_t* s, void** l, _class_t* instance, _object_t* out, bool_t* got_tostr) {
 	int result = MB_FUNC_OK;
+	_ls_node_t* tsn = 0;
 
 	mb_assert(s && l && instance && out);
 
-	_ls_node_t* tsn = _search_identifier_in_class(s, instance, _CLASS_TOSTRING_FUNC, 0, 0);
+	tsn = _search_identifier_in_class(s, instance, _CLASS_TOSTRING_FUNC, 0, 0);
 	if(got_tostr) *got_tostr = false;
 	if(tsn) {
 		_object_t* tso = (_object_t*)tsn->data;
@@ -7818,7 +8079,7 @@ static int _format_class_to_string(mb_interpreter_t* s, void** l, _class_t* inst
 			_public_value_to_internal_object(&s->running_context->intermediate_value, out);
 			if(out->type == _DT_STRING) {
 				out->data.string = mb_strdup(out->data.string, strlen(out->data.string) + 1);
-				out->ref = false;
+				out->is_ref = false;
 				mb_make_nil(s->running_context->intermediate_value);
 			} else {
 				_handle_error_on_obj(s, SE_RN_STRING_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
@@ -7955,6 +8216,16 @@ static bool_t _end_routine(mb_interpreter_t* s) {
 	return true;
 }
 
+/* Begin parsing the definition of a routine */
+static void _begin_routine_definition(mb_interpreter_t* s) {
+	_parsing_context_t* context = 0;
+
+	mb_assert(s);
+
+	context = s->parsing_context;
+	context->routine_params_state = _ROUTINE_STATE_DEF;
+}
+
 /* Begin parsing the parameter list of a routine */
 static void _begin_routine_parameter_list(mb_interpreter_t* s) {
 	_parsing_context_t* context = 0;
@@ -7962,7 +8233,7 @@ static void _begin_routine_parameter_list(mb_interpreter_t* s) {
 	mb_assert(s);
 
 	context = s->parsing_context;
-	context->routine_params_state++;
+	context->routine_params_state = _ROUTINE_STATE_PARAMS;
 }
 
 /* End parsing the parameter list of a routine */
@@ -7972,7 +8243,7 @@ static void _end_routine_parameter_list(mb_interpreter_t* s) {
 	mb_assert(s);
 
 	context = s->parsing_context;
-	context->routine_params_state--;
+	context->routine_params_state = _ROUTINE_STATE_NONE;
 }
 
 /* Duplicate a parameter from a parameter list to variable dictionary */
@@ -8146,7 +8417,7 @@ static void _try_mark_upvalue(mb_interpreter_t* s, _routine_t* r, _object_t* obj
 			inner = (_object_t*)node->data;
 			obj->type = _DT_VAR;
 			obj->data = inner->data;
-			obj->ref = true;
+			obj->is_ref = true;
 		} else {
 			/* Mark upvalues referencing outer scope chain */
 			_mark_upvalue(s, lambda, obj, obj->data.variable->name);
@@ -8211,7 +8482,7 @@ static int _do_nothing_on_ht_for_lambda(void* data, void* extra) {
 static int _fill_with_upvalue(void* data, void* extra, _upvalue_scope_tuple_t* tuple) {
 	_object_t* obj = (_object_t*)data;
 	const char* n = (const char*)extra;
-	unsigned int ul = 0;
+	unsigned ul = 0;
 	_ls_node_t* ast = 0;
 	_ls_node_t* nput = 0;
 
@@ -8233,8 +8504,8 @@ static int _fill_with_upvalue(void* data, void* extra, _upvalue_scope_tuple_t* t
 			_clone_object(tuple->s, obj, var->data, true, true);
 			_REF(var->data)
 			if(_IS_ROUTINE(obj) && obj->data.routine->type != _IT_LAMBDA) {
-				ovar->ref = true;
-				var->data->ref = true;
+				ovar->is_ref = true;
+				var->data->is_ref = true;
 			}
 #ifdef MB_ENABLE_CLASS
 			if(obj->type == _DT_VAR)
@@ -8254,7 +8525,7 @@ static int _fill_with_upvalue(void* data, void* extra, _upvalue_scope_tuple_t* t
 					if(!strcmp(aobj->data.variable->name, ovar->data.variable->name)) {
 						aobj->type = _DT_VAR;
 						aobj->data = ovar->data;
-						aobj->ref = true;
+						aobj->is_ref = true;
 					}
 
 					break;
@@ -8321,7 +8592,12 @@ static _running_context_t* _link_lambda_scope_chain(mb_interpreter_t* s, _lambda
 	root = _get_root_scope(lambda->scope);
 
 	if(weak) {
-		_push_weak_scope_by_routine(s, root, 0);
+		_running_context_t* ret = _push_weak_scope_by_routine(s, root, 0);
+		if(ret != root) {
+			_destroy_scope(s, ret);
+
+			return 0;
+		}
 	} else {
 		root->prev = s->running_context;
 		s->running_context = lambda->scope;
@@ -8770,6 +9046,10 @@ static _ls_node_t* _search_identifier_accessor(mb_interpreter_t* s, _running_con
 				return 0;
 			switch(obj->type) {
 			case _DT_VAR:
+#ifdef MB_ENABLE_USERTYPE_REF
+				if(obj->data.variable->data->type == _DT_USERTYPE_REF)
+					return result;
+#endif /* MB_ENABLE_USERTYPE_REF */
 #ifdef MB_ENABLE_CLASS
 				if(obj->data.variable->data->type == _DT_CLASS)
 					instance = obj->data.variable->data->data.instance;
@@ -8823,7 +9103,7 @@ static _var_t* _create_var(_object_t** oobj, const char* n, size_t ns, bool_t du
 	_MAKE_NIL(obj);
 	obj->type = _DT_VAR;
 	obj->data.variable = var;
-	obj->ref = false;
+	obj->is_ref = false;
 
 	if(oobj) *oobj = obj;
 
@@ -8868,6 +9148,9 @@ static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt, bo
 			obj->data.usertype_ref->dtor, obj->data.usertype_ref->clone,
 			obj->data.usertype_ref->hash, obj->data.usertype_ref->cmp, obj->data.usertype_ref->fmt
 		);
+#ifdef MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF
+		tgt->data.usertype_ref->alive_checker = obj->data.usertype_ref->alive_checker;
+#endif /* MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF */
 		if(obj->data.usertype_ref->calc_operators) {
 			tgt->data.usertype_ref->calc_operators = (_calculation_operator_info_t*)mb_malloc(sizeof(_calculation_operator_info_t));
 			memcpy(tgt->data.usertype_ref->calc_operators, obj->data.usertype_ref->calc_operators, sizeof(_calculation_operator_info_t));
@@ -8979,7 +9262,7 @@ static int _clone_object(mb_interpreter_t* s, _object_t* obj, _object_t* tgt, bo
 
 		break;
 	}
-	tgt->ref = false;
+	tgt->is_ref = false;
 #ifdef MB_ENABLE_SOURCE_TRACE
 	tgt->source_pos = 0;
 	tgt->source_row = 0;
@@ -9004,7 +9287,7 @@ static int _dispose_object(_object_t* obj) {
 		goto _exit;
 	switch(obj->type) {
 	case _DT_VAR:
-		if(!obj->ref) {
+		if(!obj->is_ref) {
 			var = (_var_t*)obj->data.variable;
 			safe_free(var->name);
 			mb_assert(var->data->type != _DT_VAR);
@@ -9017,7 +9300,7 @@ static int _dispose_object(_object_t* obj) {
 
 		break;
 	case _DT_STRING:
-		if(!obj->ref) {
+		if(!obj->is_ref) {
 			if(obj->data.string) {
 				safe_free(obj->data.string);
 			}
@@ -9036,7 +9319,7 @@ static int _dispose_object(_object_t* obj) {
 	_UNREF_COLL_IT(obj)
 	_UNREF_ROUTINE(obj)
 	case _DT_LABEL:
-		if(!obj->ref) {
+		if(!obj->is_ref) {
 			safe_free(obj->data.label->name);
 			safe_free(obj->data.label);
 		}
@@ -9045,7 +9328,7 @@ static int _dispose_object(_object_t* obj) {
 #ifdef MB_ENABLE_SOURCE_TRACE
 	case _DT_PREV_IMPORT: /* Fall through */
 	case _DT_POST_IMPORT:
-		if(!obj->ref) {
+		if(!obj->is_ref) {
 			if(obj->data.import_info) {
 				if(obj->data.import_info->source_file) {
 					safe_free(obj->data.import_info->source_file);
@@ -9070,7 +9353,7 @@ static int _dispose_object(_object_t* obj) {
 
 		break;
 	}
-	obj->ref = false;
+	obj->is_ref = false;
 	obj->type = _DT_NIL;
 	memset(&obj->data, 0, sizeof(obj->data));
 #ifdef MB_ENABLE_SOURCE_TRACE
@@ -9165,7 +9448,7 @@ static int _do_nothing_on_object(void* data, void* extra) {
 	return result;
 }
 
-/* Lose an object of of scope */
+/* Lose an object in a scope */
 static int _lose_object(void* data, void* extra) {
 	int result = _OP_RESULT_NORMAL;
 	_object_t* obj = 0;
@@ -9174,6 +9457,10 @@ static int _lose_object(void* data, void* extra) {
 	mb_assert(data && extra);
 
 	obj = (_object_t*)data;
+#ifdef MB_ENABLE_LAMBDA
+	if(obj->type == _DT_ROUTINE && obj->data.routine->type == _IT_LAMBDA)
+		obj->is_ref = false;
+#endif /* MB_ENABLE_LAMBDA */
 	switch(obj->type) {
 	case _DT_VAR:
 		_lose_object(obj->data.variable->data, extra);
@@ -9377,7 +9664,7 @@ static int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn) {
 	case MB_DT_STRING:
 		itn->type = _DT_STRING;
 		itn->data.string = pbl->value.string;
-		itn->ref = true;
+		itn->is_ref = true;
 
 		break;
 	case MB_DT_TYPE:
@@ -9400,7 +9687,7 @@ static int _public_value_to_internal_object(mb_value_t* pbl, _object_t* itn) {
 	case MB_DT_ARRAY:
 		itn->type = _DT_ARRAY;
 		itn->data.array = (_array_t*)pbl->value.array;
-		itn->ref = false;
+		itn->is_ref = false;
 
 		break;
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -9555,7 +9842,7 @@ static int _create_internal_object_from_public_value(mb_value_t* pbl, _object_t*
 	*itn = _create_object();
 	_public_value_to_internal_object(pbl, *itn);
 	if((*itn)->type == _DT_STRING) {
-		(*itn)->ref = false;
+		(*itn)->is_ref = false;
 		(*itn)->data.string = mb_strdup((*itn)->data.string, 0);
 	}
 
@@ -9620,7 +9907,7 @@ static void _destroy_var_arg(void* data, void* extra, _gc_t* gc) {
 
 /* Destroy edge destroying objects */
 static void _destroy_edge_objects(mb_interpreter_t* s) {
-	mb_assert(s);
+	if(!s) return;
 
 	_ls_foreach(s->edge_destroy_objects, _destroy_object);
 	_ls_clear(s->edge_destroy_objects);
@@ -9634,7 +9921,7 @@ static void _mark_edge_destroy_string(mb_interpreter_t* s, char* ch) {
 
 	temp_obj = _create_object();
 	temp_obj->type = _DT_STRING;
-	temp_obj->ref = false;
+	temp_obj->is_ref = false;
 	temp_obj->data.string = ch;
 	_ls_pushback(s->edge_destroy_objects, temp_obj);
 }
@@ -9655,7 +9942,7 @@ static void _mark_lazy_destroy_string(mb_interpreter_t* s, char* ch) {
 
 	temp_obj = _create_object();
 	temp_obj->type = _DT_STRING;
-	temp_obj->ref = false;
+	temp_obj->is_ref = false;
 	temp_obj->data.string = ch;
 	_ls_pushback(s->lazy_destroy_objects, temp_obj);
 }
@@ -9817,11 +10104,14 @@ static _object_t* _eval_var_in_print(mb_interpreter_t* s, _object_t** val_ptr, _
 		_public_value_to_internal_object(&s->running_context->intermediate_value, &tmp);
 		if(tmp.type == _DT_STRING) {
 			tmp.data.string = mb_strdup(tmp.data.string, strlen(tmp.data.string) + 1);
-			tmp.ref = false;
+			tmp.is_ref = false;
 			mb_make_nil(s->running_context->intermediate_value);
 		}
 		**val_ptr = tmp;
-		if(*ast) *ast = (*ast)->prev;
+		if(obj->data.routine->type != _IT_NATIVE) {
+			if(*ast)
+				*ast = (*ast)->prev;
+		}
 
 		break;
 	case _DT_VAR:
@@ -9842,7 +10132,8 @@ static _object_t* _eval_var_in_print(mb_interpreter_t* s, _object_t** val_ptr, _
 /** Interpretation */
 
 /* Callback a stepped debug handler, this function is called each step */
-static void _stepped(mb_interpreter_t* s, _ls_node_t* ast) {
+static int _stepped(mb_interpreter_t* s, _ls_node_t* ast) {
+	int result = MB_FUNC_OK;
 	_object_t* obj = 0;
 
 	mb_assert(s);
@@ -9851,14 +10142,16 @@ static void _stepped(mb_interpreter_t* s, _ls_node_t* ast) {
 		if(ast && ast->data) {
 			obj = (_object_t*)ast->data;
 #ifdef MB_ENABLE_SOURCE_TRACE
-			s->debug_stepped_handler(s, (void**)&ast, s->source_file, obj->source_pos, obj->source_row, obj->source_col);
+			result = s->debug_stepped_handler(s, (void**)&ast, s->source_file, obj->source_pos, obj->source_row, obj->source_col);
 #else /* MB_ENABLE_SOURCE_TRACE */
-			s->debug_stepped_handler(s, (void**)&ast, s->source_file, obj->source_pos, 0, 0);
+			result = s->debug_stepped_handler(s, (void**)&ast, s->source_file, obj->source_pos, 0, 0);
 #endif /* MB_ENABLE_SOURCE_TRACE */
 		} else {
-			s->debug_stepped_handler(s, (void**)&ast, s->source_file, -1, 0, 0);
+			result = s->debug_stepped_handler(s, (void**)&ast, s->source_file, -1, 0, 0);
 		}
 	}
+
+	return result;
 }
 
 /* Execute the ast, this is the core execution function */
@@ -9920,6 +10213,11 @@ _retry:
 			if(pathed && pathed->data) {
 				if(obj != (_object_t*)pathed->data) {
 					/* Found another node */
+#ifdef MB_ENABLE_USERTYPE_REF
+					if(_try_call_func_on_usertype_ref(s, &ast, obj, pathed, &result))
+						break;
+#endif /* MB_ENABLE_USERTYPE_REF */
+
 					obj = (_object_t*)pathed->data;
 
 					goto _retry;
@@ -10043,7 +10341,11 @@ _exit:
 
 	*l = ast;
 
-	_stepped(s, ast);
+	do {
+		int ret = _stepped(s, ast);
+		if(result == MB_FUNC_OK)
+			result = ret;
+	} while(0);
 
 	return result;
 }
@@ -10255,6 +10557,7 @@ static int _execute_ranged_for_loop(mb_interpreter_t* s, _ls_node_t** l, _var_t*
 		break;
 	}
 	to_node = ast;
+	switch(range_ptr->type) { _REF_COLL(range_ptr) default: /* Do nothing */ break; }
 
 _to:
 	ast = to_node;
@@ -10384,7 +10687,7 @@ static int _skip_struct(mb_interpreter_t* s, _ls_node_t** l, mb_func_t open_func
 
 	mb_assert(s && l && open_func && close_func);
 
-	ast = (_ls_node_t*)*l;
+	ast = *l;
 
 	count = 1;
 	do {
@@ -10404,6 +10707,20 @@ _exit:
 	*l = ast;
 
 	return result;
+}
+
+/* Check whether multiline statement is allowed */
+static bool_t _multiline_statement(mb_interpreter_t* s) {
+#ifdef _MULTILINE_STATEMENT
+	if(_ls_empty(s->multiline_enabled))
+		return false;
+
+	return (bool_t)(intptr_t)_ls_back(s->multiline_enabled)->data;
+#else /* _MULTILINE_STATEMENT */
+	mb_unrefvar(s);
+
+	return false;
+#endif /* _MULTILINE_STATEMENT */
 }
 
 /* Create a running context */
@@ -10438,7 +10755,7 @@ static _parsing_context_t* _reset_parsing_context(_parsing_context_t* context) {
 }
 
 /* Destroy the parsing context of a MY-BASIC environment */
-static void _destroy_parsing_context(_parsing_context_t** context) {
+static void _destroy_parsing_context(_parsing_context_t* _mb_unaligned * context) {
 	if(!context || !(*context))
 		return;
 
@@ -10507,7 +10824,6 @@ static int _ht_destroy_module_func_list(void* data, void* extra) {
 static char* _generate_func_name(mb_interpreter_t* s, char* n, bool_t with_mod) {
 	char* name = 0;
 	size_t _sl = 0;
-	mb_unrefvar(with_mod);
 
 	mb_assert(s && n);
 
@@ -10524,6 +10840,7 @@ static char* _generate_func_name(mb_interpreter_t* s, char* n, bool_t with_mod) 
 		memcpy(name, n, _sl + 1);
 	}
 #else /* MB_ENABLE_MODULE */
+	mb_unrefvar(with_mod);
 	name = (char*)mb_malloc(_sl + 1);
 	memcpy(name, n, _sl + 1);
 #endif /* MB_ENABLE_MODULE */
@@ -10784,20 +11101,20 @@ static int _close_coll_lib(mb_interpreter_t* s) {
 */
 
 /* Get the version number of this MY-BASIC system */
-unsigned int mb_ver(void) {
-	return _MB_VERSION;
+unsigned long mb_ver(void) {
+	return MB_VERSION;
 }
 
 /* Get the version text of this MY-BASIC system */
 const char* mb_ver_string(void) {
-	return _MB_VERSION_STRING;
+	return MB_VERSION_STRING;
 }
 
 /* Initialize the MY-BASIC system */
 int mb_init(void) {
-	int result = MB_FUNC_OK;
+	if(_exp_assign)
+		return MB_FUNC_ERR;
 
-	mb_assert(!_exp_assign);
 	_exp_assign = _create_object();
 	_exp_assign->type = _DT_FUNC;
 	_exp_assign->data.func = (_func_t*)mb_malloc(sizeof(_func_t));
@@ -10819,14 +11136,14 @@ int mb_init(void) {
 		bvar->data->data.integer = 0;
 	}
 
-	return result;
+	return MB_FUNC_OK;
 }
 
 /* Close the MY-BASIC system */
 int mb_dispose(void) {
-	int result = MB_FUNC_OK;
+	if(!_exp_assign)
+		return MB_FUNC_ERR;
 
-	mb_assert(_exp_assign);
 	safe_free(_exp_assign->data.func->name);
 	safe_free(_exp_assign->data.func);
 	safe_free(_exp_assign);
@@ -10849,7 +11166,7 @@ int mb_dispose(void) {
 		_OBJ_BOOL_FALSE = 0;
 	}
 
-	return result;
+	return MB_FUNC_OK;
 }
 
 /* Open a MY-BASIC environment */
@@ -10859,7 +11176,8 @@ int mb_open(struct mb_interpreter_t** s) {
 	_ht_node_t* global_scope = 0;
 	_running_context_t* running = 0;
 
-	mb_assert(s);
+	if(!s)
+		return MB_FUNC_ERR;
 
 	*s = (mb_interpreter_t*)mb_malloc(sizeof(mb_interpreter_t));
 	memset(*s, 0, sizeof(mb_interpreter_t));
@@ -10897,6 +11215,9 @@ int mb_open(struct mb_interpreter_t** s) {
 #ifdef MB_ENABLE_STACK_TRACE
 	(*s)->stack_frames = _ls_create();
 #endif /* MB_ENABLE_STACK_TRACE */
+#ifdef _MULTILINE_STATEMENT
+	(*s)->multiline_enabled = _ls_create();
+#endif /* _MULTILINE_STATEMENT */
 
 	(*s)->sub_stack = _ls_create();
 
@@ -10916,12 +11237,12 @@ int mb_open(struct mb_interpreter_t** s) {
 
 /* Close a MY-BASIC environment */
 int mb_close(struct mb_interpreter_t** s) {
-	int result = MB_FUNC_OK;
 	_ht_node_t* local_scope = 0;
 	_ht_node_t* global_scope = 0;
 	_ls_node_t* ast;
 
-	mb_assert(s);
+	if(!s || !(*s))
+		return MB_FUNC_ERR;
 
 	(*s)->valid = false;
 
@@ -10940,6 +11261,9 @@ int mb_close(struct mb_interpreter_t** s) {
 #ifdef MB_ENABLE_STACK_TRACE
 	_ls_destroy((*s)->stack_frames);
 #endif /* MB_ENABLE_STACK_TRACE */
+#ifdef _MULTILINE_STATEMENT
+	_ls_destroy((*s)->multiline_enabled);
+#endif /* _MULTILINE_STATEMENT */
 
 	_tidy_scope_chain(*s);
 	_dispose_scope_chain(*s);
@@ -10981,7 +11305,7 @@ int mb_close(struct mb_interpreter_t** s) {
 
 	safe_free(*s);
 
-	return result;
+	return MB_FUNC_OK;
 }
 
 /* Reset a MY-BASIC environment */
@@ -10992,8 +11316,10 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 	_parsing_context_t* context = 0;
 	_running_context_t* running = 0;
 
-	mb_assert(s);
+	if(!s || !(*s))
+		return MB_FUNC_ERR;
 
+	(*s)->has_run = false;
 	(*s)->jump_set = _JMP_NIL;
 	(*s)->last_routine = 0;
 	(*s)->no_eat_comma_mark = 0;
@@ -11015,6 +11341,9 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 #ifdef MB_ENABLE_STACK_TRACE
 	_ls_clear((*s)->stack_frames);
 #endif /* MB_ENABLE_STACK_TRACE */
+#ifdef _MULTILINE_STATEMENT
+	_ls_clear((*s)->multiline_enabled);
+#endif /* _MULTILINE_STATEMENT */
 
 	_clear_scope_chain(*s);
 
@@ -11040,21 +11369,21 @@ int mb_reset(struct mb_interpreter_t** s, bool_t clrf) {
 
 /* Register an API function to a MY-BASIC environment */
 int mb_register_func(struct mb_interpreter_t* s, const char* n, mb_func_t f) {
-	mb_assert(s && n && f);
+	if(!s || !n || !f) return MB_FUNC_ERR;
 
 	return _register_func(s, (char*)n, f, false);
 }
 
 /* Remove an API function from a MY-BASIC environment */
 int mb_remove_func(struct mb_interpreter_t* s, const char* n) {
-	mb_assert(s && n);
+	if(!s || !n) return MB_FUNC_ERR;
 
 	return _remove_func(s, (char*)n, false);
 }
 
 /* Remove a reserved API from a MY-BASIC environment */
 int mb_remove_reserved_func(struct mb_interpreter_t* s, const char* n) {
-	mb_assert(s && n);
+	if(!s || !n) return MB_FUNC_ERR;
 
 	return _remove_func(s, (char*)n, true);
 }
@@ -11063,7 +11392,11 @@ int mb_remove_reserved_func(struct mb_interpreter_t* s, const char* n) {
 int mb_begin_module(struct mb_interpreter_t* s, const char* n) {
 	int result = MB_FUNC_OK;
 
-	mb_assert(s && n);
+	if(!s || !n) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 #ifdef MB_ENABLE_MODULE
 	if(s->with_module) {
@@ -11083,7 +11416,11 @@ _exit:
 int mb_end_module(struct mb_interpreter_t* s) {
 	int result = MB_FUNC_OK;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 #ifdef MB_ENABLE_MODULE
 	if(s->with_module) {
@@ -11106,8 +11443,15 @@ int mb_attempt_func_begin(struct mb_interpreter_t* s, void** l) {
 	_ls_node_t* ast = 0;
 	_object_t* obj = 0;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
 
+		goto _exit;
+	}
+
+#ifdef _MULTILINE_STATEMENT
+	_ls_pushback(s->multiline_enabled, (void*)(intptr_t)false);
+#endif /* _MULTILINE_STATEMENT */
 	ast = (_ls_node_t*)*l;
 	obj = (_object_t*)ast->data;
 	if(!(obj->type == _DT_FUNC)) {
@@ -11127,9 +11471,14 @@ _exit:
 int mb_attempt_func_end(struct mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 
-	mb_assert(s && l);
-
-	--s->no_eat_comma_mark;
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+	} else {
+#ifdef _MULTILINE_STATEMENT
+		_ls_popback(s->multiline_enabled);
+#endif /* _MULTILINE_STATEMENT */
+		--s->no_eat_comma_mark;
+	}
 
 	return result;
 }
@@ -11140,11 +11489,23 @@ int mb_attempt_open_bracket(struct mb_interpreter_t* s, void** l) {
 	_ls_node_t* ast = 0;
 	_object_t* obj = 0;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	ast = (_ls_node_t*)*l;
+#ifdef _MULTILINE_STATEMENT
+	_ls_pushback(s->multiline_enabled, (void*)(intptr_t)true);
+	do {
+		ast = ast->next;
+		obj = (_object_t*)ast->data;
+	} while(obj && obj->type == _DT_EOS);
+#else /* _MULTILINE_STATEMENT */
 	ast = ast->next;
 	obj = (_object_t*)ast->data;
+#endif /* _MULTILINE_STATEMENT */
 	if(!_IS_FUNC(obj, _core_open_bracket)) {
 		_handle_error_on_obj(s, SE_RN_OPEN_BRACKET_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
@@ -11162,13 +11523,26 @@ int mb_attempt_close_bracket(struct mb_interpreter_t* s, void** l) {
 	_ls_node_t* ast = 0;
 	_object_t* obj = 0;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	ast = (_ls_node_t*)*l;
 	if(!ast) {
 		_handle_error_on_obj(s, SE_RN_CLOSE_BRACKET_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
+#ifdef _MULTILINE_STATEMENT
+	_ls_popback(s->multiline_enabled);
 	obj = (_object_t*)ast->data;
+	while(obj && obj->type == _DT_EOS) {
+		ast = ast->next;
+		obj = (_object_t*)ast->data;
+	}
+#else /* _MULTILINE_STATEMENT */
+	obj = (_object_t*)ast->data;
+#endif /* _MULTILINE_STATEMENT */
 	if(!_IS_FUNC(obj, _core_close_bracket)) {
 		_handle_error_on_obj(s, SE_RN_CLOSE_BRACKET_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
@@ -11186,15 +11560,29 @@ int mb_has_arg(struct mb_interpreter_t* s, void** l) {
 	_ls_node_t* ast = 0;
 	_object_t* obj = 0;
 
-	mb_assert(s && l);
+	if(!s || !l)
+		goto _exit;
 
 	ast = (_ls_node_t*)*l;
 	if(ast) {
+#ifdef _MULTILINE_STATEMENT
+		if(_multiline_statement(s)) {
+			obj = (_object_t*)ast->data;
+			while(obj && obj->type == _DT_EOS) {
+				ast = ast->next;
+				obj = (_object_t*)ast->data;
+			}
+		} else {
+			obj = (_object_t*)ast->data;
+		}
+#else /* _MULTILINE_STATEMENT */
 		obj = (_object_t*)ast->data;
+#endif /* _MULTILINE_STATEMENT */
 		if(!_IS_FUNC(obj, _core_close_bracket) && obj->type != _DT_EOS)
 			result = obj->type != _DT_SEP && obj->type != _DT_EOS;
 	}
 
+_exit:
 	return result;
 }
 
@@ -11204,7 +11592,11 @@ int mb_pop_int(struct mb_interpreter_t* s, void** l, int_t* val) {
 	mb_value_t arg;
 	int_t tmp = 0;
 
-	mb_assert(s && l && val);
+	if(!s || !l || !val) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	mb_make_nil(arg);
 
@@ -11237,7 +11629,11 @@ int mb_pop_real(struct mb_interpreter_t* s, void** l, real_t* val) {
 	mb_value_t arg;
 	real_t tmp = 0;
 
-	mb_assert(s && l && val);
+	if(!s || !l || !val) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	mb_make_nil(arg);
 
@@ -11270,7 +11666,11 @@ int mb_pop_string(struct mb_interpreter_t* s, void** l, char** val) {
 	mb_value_t arg;
 	char* tmp = 0;
 
-	mb_assert(s && l && val);
+	if(!s || !l || !val) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	mb_make_nil(arg);
 
@@ -11299,7 +11699,11 @@ int mb_pop_usertype(struct mb_interpreter_t* s, void** l, void** val) {
 	mb_value_t arg;
 	void* tmp = 0;
 
-	mb_assert(s && l && val);
+	if(!s || !l || !val) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	mb_make_nil(arg);
 
@@ -11331,7 +11735,11 @@ int mb_pop_value(struct mb_interpreter_t* s, void** l, mb_value_t* val) {
 	_running_context_t* running = 0;
 	int* inep = 0;
 
-	mb_assert(s && l && val);
+	if(!s || !l || !val) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	running = s->running_context;
 
@@ -11341,12 +11749,34 @@ int mb_pop_value(struct mb_interpreter_t* s, void** l, mb_value_t* val) {
 	val_ptr = &val_obj;
 	_MAKE_NIL(val_ptr);
 
+#ifdef MB_ENABLE_USERTYPE_REF
+	if(s->usertype_ref_ahead) {
+		ast = (_ls_node_t*)*l;
+		memcpy(val_ptr, s->usertype_ref_ahead, sizeof(_object_t));
+		s->usertype_ref_ahead = 0;
+
+		goto _got;
+	}
+#endif /* MB_ENABLE_USERTYPE_REF */
 	ast = (_ls_node_t*)*l;
+#ifdef _MULTILINE_STATEMENT
+	if(_multiline_statement(s)) {
+		_object_t* obj = 0;
+		obj = (_object_t*)ast->data;
+		while(obj && obj->type == _DT_EOS) {
+			ast = ast->next;
+			obj = (_object_t*)ast->data;
+		}
+	}
+#endif /* _MULTILINE_STATEMENT */
 	result = _calc_expression(s, &ast, &val_ptr);
 	if(result != MB_FUNC_OK)
 		goto _exit;
 
-	if(val_ptr->type == _DT_STRING && !val_ptr->ref) {
+#ifdef MB_ENABLE_USERTYPE_REF
+_got:
+#endif /* MB_ENABLE_USERTYPE_REF */
+	if(val_ptr->type == _DT_STRING && !val_ptr->is_ref) {
 		_destroy_edge_objects(s);
 		_mark_edge_destroy_string(s, val_ptr->data.string);
 	}
@@ -11372,11 +11802,16 @@ int mb_push_int(struct mb_interpreter_t* s, void** l, int_t val) {
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	mb_make_int(arg, val);
 	mb_check(mb_push_value(s, l, arg));
 
+_exit:
 	return result;
 }
 
@@ -11385,12 +11820,17 @@ int mb_push_real(struct mb_interpreter_t* s, void** l, real_t val) {
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	mb_make_real(arg, val);
 	mb_convert_to_int_if_posible(arg);
 	mb_check(mb_push_value(s, l, arg));
 
+_exit:
 	return result;
 }
 
@@ -11399,12 +11839,17 @@ int mb_push_string(struct mb_interpreter_t* s, void** l, char* val) {
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	mb_make_string(arg, val);
 	mb_check(mb_push_value(s, l, arg));
 	_mark_lazy_destroy_string(s, val);
 
+_exit:
 	return result;
 }
 
@@ -11413,11 +11858,16 @@ int mb_push_usertype(struct mb_interpreter_t* s, void** l, void* val) {
 	int result = MB_FUNC_OK;
 	mb_value_t arg;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	mb_make_usertype(arg, val);
 	mb_check(mb_push_value(s, l, arg));
 
+_exit:
 	return result;
 }
 
@@ -11427,7 +11877,11 @@ int mb_push_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 	_running_context_t* running = 0;
 	_object_t obj;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	running = s->running_context;
 	_assign_public_value(&running->intermediate_value, &val);
@@ -11438,6 +11892,7 @@ int mb_push_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 
 	_gc_try_trigger(s);
 
+_exit:
 	return result;
 }
 
@@ -11454,7 +11909,11 @@ int mb_begin_class(struct mb_interpreter_t* s, void** l, const char* n, mb_value
 	_object_t mo;
 	_class_t* mi = 0;
 
-	mb_assert(s && l && n && out);
+	if(!s || !l || !n || !out) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	running = s->running_context;
 
@@ -11500,6 +11959,11 @@ int mb_begin_class(struct mb_interpreter_t* s, void** l, const char* n, mb_value
 
 	s->last_instance = instance;
 
+	if(out) {
+		out->type = MB_DT_CLASS;
+		out->value.instance = instance;
+	}
+
 _exit:
 	return result;
 #else /* MB_ENABLE_CLASS */
@@ -11519,12 +11983,17 @@ int mb_end_class(struct mb_interpreter_t* s, void** l) {
 #ifdef MB_ENABLE_CLASS
 	int result = MB_FUNC_OK;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	_pop_scope(s, false);
 
 	s->last_instance = 0;
 
+_exit:
 	return result;
 #else /* MB_ENABLE_CLASS */
 	mb_unrefvar(s);
@@ -11539,7 +12008,11 @@ int mb_get_class_userdata(struct mb_interpreter_t* s, void** l, void** d) {
 #ifdef MB_ENABLE_CLASS
 	int result = MB_FUNC_OK;
 
-	mb_assert(s && l && d);
+	if(!s || !l || !d) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(s && s->last_instance) {
 		if(d)
@@ -11569,7 +12042,11 @@ int mb_set_class_userdata(struct mb_interpreter_t* s, void** l, void* d) {
 #ifdef MB_ENABLE_CLASS
 	int result = MB_FUNC_OK;
 
-	mb_assert(s && l && d);
+	if(!s || !l || !d) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(s && s->last_instance) {
 		s->last_instance->userdata = d;
@@ -11594,7 +12071,11 @@ int mb_get_value_by_name(struct mb_interpreter_t* s, void** l, const char* n, mb
 	_ls_node_t* tmp = 0;
 	_object_t* obj = 0;
 
-	mb_assert(s && l && n);
+	if(!s || !l || !n) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	mb_make_nil(*val);
 
@@ -11604,6 +12085,7 @@ int mb_get_value_by_name(struct mb_interpreter_t* s, void** l, const char* n, mb
 		_internal_object_to_public_value(obj, val);
 	}
 
+_exit:
 	return result;
 }
 
@@ -11615,7 +12097,11 @@ int mb_add_var(struct mb_interpreter_t* s, void** l, const char* n, mb_value_t v
 	_var_t* var = 0;
 	_ls_node_t* tmp = 0;
 
-	mb_assert(s && l && n);
+	if(!s || !l || !n) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	running = s->running_context;
 
@@ -11646,7 +12132,11 @@ int mb_get_var(struct mb_interpreter_t* s, void** l, void** v) {
 	_ls_node_t* ast = 0;
 	_object_t* obj = 0;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(v) *v = 0;
 
@@ -11665,8 +12155,12 @@ int mb_get_var(struct mb_interpreter_t* s, void** l, void** v) {
 			*v = obj;
 	}
 
+	if(ast && _IS_SEP(ast->data, ','))
+		ast = ast->next;
+
 	*l = ast;
 
+_exit:
 	return result;
 }
 
@@ -11675,7 +12169,11 @@ int mb_get_var_value(struct mb_interpreter_t* s, void* v, mb_value_t* val) {
 	int result = MB_FUNC_OK;
 	_object_t* obj = 0;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(!val || !v)
 		goto _exit;
@@ -11695,7 +12193,11 @@ int mb_set_var_value(struct mb_interpreter_t* s, void* v, mb_value_t val) {
 	int result = MB_FUNC_OK;
 	_object_t* obj = 0;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(!v)
 		goto _exit;
@@ -11718,7 +12220,11 @@ int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* d, int
 	int n = 0;
 	mb_unrefvar(t);
 
-	mb_assert(s && l && d && a);
+	if(!s || !l || !d || !a) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	*a = 0;
 	if(c >= MB_MAX_DIMENSION_COUNT) {
@@ -11748,9 +12254,9 @@ int mb_init_array(struct mb_interpreter_t* s, void** l, mb_data_e t, int* d, int
 		n = d[j];
 		arr->dimensions[arr->dimension_count++] = n;
 		if(arr->count)
-			arr->count *= (unsigned int)n;
+			arr->count *= (unsigned)n;
 		else
-			arr->count += (unsigned int)n;
+			arr->count += (unsigned)n;
 	}
 	_init_array(arr);
 	if(!arr->raw) {
@@ -11769,7 +12275,11 @@ int mb_get_array_len(struct mb_interpreter_t* s, void** l, void* a, int r, int* 
 	int result = MB_FUNC_OK;
 	_array_t* arr = 0;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	arr = (_array_t*)a;
 	if(r < 0 || r >= arr->dimension_count) {
@@ -11789,7 +12299,11 @@ int mb_get_array_elem(struct mb_interpreter_t* s, void** l, void* a, int* d, int
 	int index = 0;
 	_data_e type = _DT_NIL;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	arr = (_array_t*)a;
 	if(c < 0 || c > arr->dimension_count) {
@@ -11817,7 +12331,11 @@ int mb_set_array_elem(struct mb_interpreter_t* s, void** l, void* a, int* d, int
 	int index = 0;
 	_data_e type = _DT_NIL;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	arr = (_array_t*)a;
 	if(c < 0 || c > arr->dimension_count) {
@@ -11830,7 +12348,7 @@ int mb_set_array_elem(struct mb_interpreter_t* s, void** l, void* a, int* d, int
 	}
 
 	type = _public_type_to_internal_type(val.type);
-	_set_array_elem(s, 0, arr, (unsigned int)index, &val.value, &type);
+	_set_array_elem(s, 0, arr, (unsigned)index, &val.value, &type);
 
 _exit:
 	return result;
@@ -11840,7 +12358,11 @@ _exit:
 int mb_init_coll(struct mb_interpreter_t* s, void** l, mb_value_t* coll) {
 	int result = MB_FUNC_OK;
 
-	mb_assert(s);
+	if(!s || !coll) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 #ifdef MB_ENABLE_COLLECTION_LIB
 	switch(coll->type) {
@@ -11874,9 +12396,13 @@ int mb_get_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, mb_value_
 	int_t i = 0;
 	mb_value_t ret;
 
-	mb_assert(s);
-
 	mb_make_nil(ret);
+
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	_MAKE_NIL(&ocoll);
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -11923,7 +12449,11 @@ int mb_set_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, mb_value_
 	_object_t* oval = 0;
 	mb_value_t ret;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	mb_make_nil(ret);
 
@@ -11973,7 +12503,11 @@ int mb_remove_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, mb_val
 	int_t i = 0;
 	mb_value_t ret;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	mb_make_nil(ret);
 
@@ -12022,7 +12556,11 @@ int mb_count_coll(struct mb_interpreter_t* s, void** l, mb_value_t coll, int* c)
 #endif /* MB_ENABLE_COLLECTION_LIB */
 	int ret = 0;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	_MAKE_NIL(&ocoll);
 #ifdef MB_ENABLE_COLLECTION_LIB
@@ -12060,7 +12598,11 @@ int mb_make_ref_value(struct mb_interpreter_t* s, void* val, mb_value_t* out, mb
 	int result = MB_FUNC_OK;
 	_usertype_ref_t* ref = 0;
 
-	mb_assert(s && out);
+	if(!s || !out) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(out) {
 		ref = _create_usertype_ref(s, val, un, cl, hs, cp, ft);
@@ -12068,6 +12610,7 @@ int mb_make_ref_value(struct mb_interpreter_t* s, void* val, mb_value_t* out, mb
 		out->value.usertype_ref = ref;
 	}
 
+_exit:
 	return result;
 #else /* MB_ENABLE_USERTYPE_REF */
 	mb_unrefvar(s);
@@ -12089,7 +12632,11 @@ int mb_get_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val, void*
 	int result = MB_FUNC_OK;
 	_usertype_ref_t* ref = 0;
 
-	mb_assert(s && out);
+	if(!s || !out) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(val.type != MB_DT_USERTYPE_REF) {
 		_handle_error_on_obj(s, SE_RN_TYPE_NOT_MATCH, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
@@ -12117,7 +12664,11 @@ int mb_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 	int result = MB_FUNC_OK;
 	_object_t obj;
 
-	mb_assert(s && l);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	_MAKE_NIL(&obj);
 	_public_value_to_internal_object(&val, &obj);
@@ -12131,6 +12682,7 @@ int mb_ref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 #ifdef MB_ENABLE_CLASS
 		obj.type != _DT_CLASS &&
 #endif /* MB_ENABLE_CLASS */
+		obj.type != _DT_ROUTINE &&
 		obj.type != _DT_ARRAY
 	) {
 		_handle_error_on_obj(s, SE_RN_REFERENCED_TYPE_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
@@ -12146,7 +12698,11 @@ int mb_unref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 	int result = MB_FUNC_OK;
 	_object_t obj;
 
-	mb_assert(s && l);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	_MAKE_NIL(&obj);
 	_public_value_to_internal_object(&val, &obj);
@@ -12160,6 +12716,7 @@ int mb_unref_value(struct mb_interpreter_t* s, void** l, mb_value_t val) {
 #ifdef MB_ENABLE_CLASS
 		obj.type != _DT_CLASS &&
 #endif /* MB_ENABLE_CLASS */
+		obj.type != _DT_ROUTINE &&
 		obj.type != _DT_ARRAY
 	) {
 		_handle_error_on_obj(s, SE_RN_REFERENCED_TYPE_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
@@ -12170,12 +12727,48 @@ _exit:
 	return result;
 }
 
+/* Set the alive checker of a value */
+int mb_set_alive_checker_of_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_alive_checker f) {
+#ifdef MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF
+	int result = MB_FUNC_OK;
+	_object_t obj;
+
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
+
+	if(val.type != MB_DT_USERTYPE_REF) {
+		_handle_error_on_obj(s, SE_RN_REFERENCED_USERTYPE_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
+	}
+
+	_MAKE_NIL(&obj);
+	_public_value_to_internal_object(&val, &obj);
+	obj.data.usertype_ref->alive_checker = f;
+
+_exit:
+	return result;
+#else /* MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF */
+	mb_unrefvar(s);
+	mb_unrefvar(l);
+	mb_unrefvar(val);
+	mb_unrefvar(f);
+
+	return MB_FUNC_ERR;
+#endif /* MB_ENABLE_ALIVE_CHECKING_ON_USERTYPE_REF */
+}
+
 /* Override a meta function of a value */
 int mb_override_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_meta_func_u m, void* f) {
 	int result = MB_FUNC_OK;
 	_object_t obj;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 #ifdef MB_ENABLE_USERTYPE_REF
 	_MAKE_NIL(&obj);
@@ -12235,6 +12828,7 @@ int mb_override_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_m
 	mb_unrefvar(f);
 #endif /* MB_ENABLE_USERTYPE_REF */
 
+_exit:
 	return result;
 }
 
@@ -12242,13 +12836,18 @@ int mb_override_value(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_m
 int mb_dispose_value(struct mb_interpreter_t* s, mb_value_t val) {
 	int result = MB_FUNC_OK;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(val.type == MB_DT_STRING)
 		safe_free(val.value.string);
 
 	_assign_public_value(&val, 0);
 
+_exit:
 	return result;
 }
 
@@ -12258,7 +12857,11 @@ int mb_get_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_value
 	_object_t* obj = 0;
 	_ls_node_t* scp = 0;
 
-	mb_assert(s && l && n && val);
+	if(!s || !l || !n || !val) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	mb_make_nil(*val);
 
@@ -12287,7 +12890,11 @@ int mb_set_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_routi
 	_ls_node_t* tmp = 0;
 	_var_t* var = 0;
 
-	mb_assert(s && l);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	running = s->running_context;
 
@@ -12309,7 +12916,7 @@ int mb_set_routine(struct mb_interpreter_t* s, void** l, const char* n, mb_routi
 	obj = _create_object();
 	obj->type = _DT_ROUTINE;
 	obj->data.routine = routine;
-	obj->ref = false;
+	obj->is_ref = false;
 
 #ifdef MB_ENABLE_CLASS
 	routine->instance = s->last_instance;
@@ -12330,6 +12937,12 @@ _exit:
 int mb_eval_routine(struct mb_interpreter_t* s, void** l, mb_value_t val, mb_value_t* args, unsigned argc) {
 	int result = MB_FUNC_OK;
 	_object_t obj;
+
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(val.type != MB_DT_ROUTINE) {
 		_handle_error_on_obj(s, SE_RN_ROUTINE_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
@@ -12352,7 +12965,14 @@ int mb_load_string(struct mb_interpreter_t* s, const char* l, bool_t reset) {
 	char wrapped = _ZERO_CHAR;
 	_parsing_context_t* context = 0;
 
-	mb_assert(s && s->parsing_context);
+	if(!s || !l) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
+
+	if(!s->parsing_context)
+		s->parsing_context = _reset_parsing_context(s->parsing_context);
 
 	context = s->parsing_context;
 
@@ -12412,7 +13032,11 @@ int mb_load_file(struct mb_interpreter_t* s, const char* f) {
 	char* buf = 0;
 	_parsing_context_t* context = 0;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	context = s->parsing_context;
 
@@ -12432,7 +13056,8 @@ int mb_load_file(struct mb_interpreter_t* s, const char* f) {
 	}
 
 _exit:
-	context->parsing_state = _PS_NORMAL;
+	if(context)
+		context->parsing_state = _PS_NORMAL;
 
 	return result;
 }
@@ -12442,7 +13067,11 @@ int mb_run(struct mb_interpreter_t* s) {
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(s->parsing_context) {
 		if(s->parsing_context->routine_state) {
@@ -12477,6 +13106,10 @@ int mb_run(struct mb_interpreter_t* s) {
 #endif /* MB_ENABLE_CLASS */
 		s->last_routine = 0;
 
+#ifdef _MULTILINE_STATEMENT
+		_ls_clear(s->multiline_enabled);
+#endif /* _MULTILINE_STATEMENT */
+
 		mb_assert(!s->no_eat_comma_mark);
 		while(s->running_context->prev)
 			s->running_context = s->running_context->prev;
@@ -12507,6 +13140,8 @@ int mb_run(struct mb_interpreter_t* s) {
 _exit:
 	_destroy_edge_objects(s);
 
+	s->has_run = true;
+
 	return result;
 }
 
@@ -12515,11 +13150,16 @@ int mb_suspend(struct mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 	_ls_node_t* ast = 0;
 
-	mb_assert(s && l && *l);
+	if(!s || !l || !(*l)) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	ast = (_ls_node_t*)*l;
 	s->suspent_point = ast;
 
+_exit:
 	return result;
 }
 
@@ -12527,12 +13167,17 @@ int mb_suspend(struct mb_interpreter_t* s, void** l) {
 int mb_schedule_suspend(struct mb_interpreter_t* s, int t) {
 	int result = MB_FUNC_OK;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(t == MB_FUNC_OK)
 		t = MB_FUNC_SUSPEND;
 	s->schedule_suspend_tag = t;
 
+_exit:
 	return result;
 }
 
@@ -12544,7 +13189,11 @@ int mb_debug_get(struct mb_interpreter_t* s, const char* n, mb_value_t* val) {
 	_object_t* obj = 0;
 	mb_value_t tmp;
 
-	mb_assert(s && n);
+	if(!s || !n) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	running = s->running_context;
 
@@ -12574,7 +13223,11 @@ int mb_debug_set(struct mb_interpreter_t* s, const char* n, mb_value_t val) {
 	_ls_node_t* v = 0;
 	_object_t* obj = 0;
 
-	mb_assert(s && n);
+	if(!s || !n) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	running = s->running_context;
 
@@ -12599,7 +13252,11 @@ int mb_debug_get_stack_trace(struct mb_interpreter_t* s, void** l, char** fs, un
 	unsigned i = 0;
 	mb_unrefvar(l);
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(fs && fc) {
 		if(_ls_count(s->stack_frames) > fc)
@@ -12613,6 +13270,7 @@ int mb_debug_get_stack_trace(struct mb_interpreter_t* s, void** l, char** fs, un
 	while(i < fc)
 		fs[i++] = 0;
 
+_exit:
 	return result;
 #else /* MB_ENABLE_STACK_TRACE */
 	int result = MB_FUNC_OK;
@@ -12630,10 +13288,15 @@ _exit:
 int mb_debug_set_stepped_handler(struct mb_interpreter_t* s, mb_debug_stepped_handler_t h) {
 	int result = MB_FUNC_OK;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	s->debug_stepped_handler = h;
 
+_exit:
 	return result;
 }
 
@@ -12691,7 +13354,11 @@ const char* mb_get_type_string(mb_data_e t) {
 int mb_raise_error(struct mb_interpreter_t* s, void** l, mb_error_e err, int ret) {
 	int result = MB_FUNC_ERR;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	_handle_error_on_obj(s, err, s->source_file, DON2(l), ret, _exit, result);
 
@@ -12703,11 +13370,13 @@ _exit:
 mb_error_e mb_get_last_error(struct mb_interpreter_t* s) {
 	mb_error_e result = SE_NO_ERR;
 
-	mb_assert(s);
+	if(!s)
+		goto _exit;
 
 	result = s->last_error;
-	s->last_error = SE_NO_ERR;
+	s->last_error = SE_NO_ERR; /* Clear error state */
 
+_exit:
 	return result;
 }
 
@@ -12723,10 +13392,15 @@ const char* mb_get_error_desc(mb_error_e err) {
 int mb_set_error_handler(struct mb_interpreter_t* s, mb_error_handler_t h) {
 	int result = MB_FUNC_OK;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	s->error_handler = h;
 
+_exit:
 	return result;
 }
 
@@ -12734,10 +13408,15 @@ int mb_set_error_handler(struct mb_interpreter_t* s, mb_error_handler_t h) {
 int mb_set_printer(struct mb_interpreter_t* s, mb_print_func_t p) {
 	int result = MB_FUNC_OK;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	s->printer = p;
 
+_exit:
 	return result;
 }
 
@@ -12745,10 +13424,15 @@ int mb_set_printer(struct mb_interpreter_t* s, mb_print_func_t p) {
 int mb_set_inputer(struct mb_interpreter_t* s, mb_input_func_t p) {
 	int result = MB_FUNC_OK;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	s->inputer = p;
 
+_exit:
 	return result;
 }
 
@@ -12756,7 +13440,8 @@ int mb_set_inputer(struct mb_interpreter_t* s, mb_input_func_t p) {
 int mb_gc(struct mb_interpreter_t* s, int_t* collected) {
 	int_t diff = 0;
 
-	mb_assert(s);
+	if(!s)
+		return MB_FUNC_ERR;
 
 	diff = (int_t)_mb_allocated;
 	_gc_collect_garbage(s, 1);
@@ -12771,11 +13456,16 @@ int mb_gc(struct mb_interpreter_t* s, int_t* collected) {
 int mb_get_userdata(struct mb_interpreter_t* s, void** d) {
 	int result = MB_FUNC_OK;
 
-	mb_assert(s && d);
+	if(!s || !d) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(s && d)
 		*d = s->userdata;
 
+_exit:
 	return result;
 }
 
@@ -12783,11 +13473,16 @@ int mb_get_userdata(struct mb_interpreter_t* s, void** d) {
 int mb_set_userdata(struct mb_interpreter_t* s, void* d) {
 	int result = MB_FUNC_OK;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	if(s)
 		s->userdata = d;
 
+_exit:
 	return result;
 }
 
@@ -12795,10 +13490,15 @@ int mb_set_userdata(struct mb_interpreter_t* s, void* d) {
 int mb_set_import_handler(struct mb_interpreter_t* s, mb_import_handler_t h) {
 	int result = MB_FUNC_OK;
 
-	mb_assert(s);
+	if(!s) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
 
 	s->import_handler = h;
 
+_exit:
 	return result;
 }
 
@@ -12806,15 +13506,17 @@ int mb_set_import_handler(struct mb_interpreter_t* s, mb_import_handler_t h) {
 int mb_gets(char* buf, int s) {
 	int result = 0;
 
-	if(fgets(buf, s, stdin) == 0) {
-		fprintf(stderr, "Error reading.\n");
+	if(buf && s) {
+		if(fgets(buf, s, stdin) == 0) {
+			fprintf(stderr, "Error reading.\n");
 
-		exit(1);
-	}
-	result = (int)strlen(buf);
-	if(buf[result - 1] == _NEWLINE_CHAR) {
-		buf[result - 1] = _ZERO_CHAR;
-		result--;
+			exit(1);
+		}
+		result = (int)strlen(buf);
+		if(buf[result - 1] == _NEWLINE_CHAR) {
+			buf[result - 1] = _ZERO_CHAR;
+			result--;
+		}
 	}
 
 	return result;
@@ -12880,7 +13582,7 @@ _exit:
 	return result;
 }
 
-/* Operator - */
+/* Operator - (minus) */
 static int _core_min(mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 
@@ -13383,7 +14085,7 @@ static int _core_let(mb_interpreter_t* s, void** l) {
 	int refc = 1;
 	_array_t* arr = 0;
 	_object_t* arr_obj = 0;
-	unsigned int arr_idx = 0;
+	unsigned arr_idx = 0;
 	bool_t literally = false;
 	_object_t* val = 0;
 	bool_t freed = false;
@@ -13521,14 +14223,14 @@ _proc_extra_var:
 		if(val->type == _DT_ROUTINE) {
 #ifdef MB_ENABLE_LAMBDA
 			if(val->data.routine->type == _IT_LAMBDA)
-				var->data->ref = val->ref;
+				var->data->is_ref = val->is_ref;
 			else
-				var->data->ref = 1;
+				var->data->is_ref = true;
 #else /* MB_ENABLE_LAMBDA */
-			var->data->ref = 1;
+			var->data->is_ref = true;
 #endif /* MB_ENABLE_LAMBDA */
 		} else {
-			var->data->ref = val->ref;
+			var->data->is_ref = val->is_ref;
 		}
 #ifdef MB_ENABLE_CLASS
 		if(evar && evar->pathing) {
@@ -13553,12 +14255,13 @@ _proc_extra_var:
 #else /* MB_ENABLE_COLLECTION_LIB */
 			arr_obj->data = val->data;
 #endif /* MB_ENABLE_COLLECTION_LIB */
-			arr_obj->ref = val->ref;
+			arr_obj->is_ref = val->is_ref;
 		}
 	} else if(arr) {
 		mb_value_u _val;
 		switch(val->type) {
 		case _DT_NIL: /* Fall through */
+		case _DT_UNKNOWN: /* Fall through */
 		case _DT_INT: /* Fall through */
 		case _DT_REAL: /* Fall through */
 		case _DT_STRING: /* Fall through */
@@ -13566,6 +14269,29 @@ _proc_extra_var:
 			_COPY_BYTES(_val.bytes, val->data.bytes);
 
 			break;
+		case _DT_TYPE: /* Fall through */
+#ifdef MB_ENABLE_USERTYPE_REF
+		case _DT_USERTYPE_REF: /* Fall through */
+#endif /* MB_ENABLE_USERTYPE_REF */
+		case _DT_FUNC: /* Fall through */
+		case _DT_ARRAY: /* Fall through */
+#ifdef MB_ENABLE_COLLECTION_LIB
+		case _DT_LIST: /* Fall through */
+		case _DT_LIST_IT: /* Fall through */
+		case _DT_DICT: /* Fall through */
+		case _DT_DICT_IT: /* Fall through */
+#endif /* MB_ENABLE_COLLECTION_LIB */
+#ifdef MB_ENABLE_CLASS
+		case _DT_CLASS: /* Fall through */
+#endif /* MB_ENABLE_CLASS */
+		case _DT_ROUTINE:
+#ifdef MB_SIMPLE_ARRAY
+			/* Fall through */
+#else /* MB_SIMPLE_ARRAY */
+			_COPY_BYTES(_val.bytes, val->data.bytes);
+
+			break;
+#endif /* MB_SIMPLE_ARRAY */
 		default:
 			safe_free(val);
 			_handle_error_on_obj(s, SE_CM_NOT_SUPPORTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
@@ -13575,7 +14301,7 @@ _proc_extra_var:
 		result = _set_array_elem(s, ast, arr, arr_idx, &_val, &val->type);
 		if(result != MB_FUNC_OK)
 			goto _exit;
-		if(val->type == _DT_STRING && !val->ref) {
+		if(val->type == _DT_STRING && !val->is_ref) {
 			safe_free(val->data.string);
 		}
 	}
@@ -13635,9 +14361,9 @@ static int _core_dim(mb_interpreter_t* s, void** l) {
 		}
 		dummy.dimensions[dummy.dimension_count++] = (int)val.integer;
 		if(dummy.count)
-			dummy.count *= (unsigned int)val.integer;
+			dummy.count *= (unsigned)val.integer;
 		else
-			dummy.count += (unsigned int)val.integer;
+			dummy.count += (unsigned)val.integer;
 		ast = ast->next;
 		/* Comma? */
 		if(_IS_SEP(ast->data, ','))
@@ -13709,6 +14435,8 @@ _elseif:
 
 				break;
 			}
+			if(multi_line && ast && _IS_FUNC(ast->data, _core_elseif))
+				break;
 			result = _execute_statement(s, &ast, true);
 			if(result != MB_FUNC_OK)
 				goto _exit;
@@ -13762,9 +14490,16 @@ _elseif:
 			}
 
 			do {
-				ast = ast->next;
-				while(_IS_EOS(ast->data))
+				_ls_node_t* la = 0;
+				la = ast = ast->next;
+				while(ast && _IS_EOS(ast->data)) {
 					ast = ast->next;
+					if(ast) la = ast;
+				}
+				if(!ast) {
+					mb_get_last_error(s);
+					_handle_error_on_obj(s, SE_RN_ENDIF_EXPECTED, s->source_file, DON(la), MB_FUNC_ERR, _exit, result);
+				}
 				if(ast && _IS_FUNC(ast->data, _core_endif)) {
 					ast = ast->prev;
 
@@ -13792,8 +14527,10 @@ _exit:
 			int ret = MB_FUNC_OK;
 			if(skip)
 				ret = _skip_struct(s, &ast, _core_if, _core_endif);
-			if(result != MB_FUNC_END && result != MB_LOOP_BREAK && result != MB_LOOP_CONTINUE && result != MB_SUB_RETURN)
-				result = ret;
+			if(result != MB_FUNC_END && result != MB_LOOP_BREAK && result != MB_LOOP_CONTINUE && result != MB_SUB_RETURN) {
+				if(ret != MB_FUNC_OK)
+					result = ret;
+			}
 		}
 	}
 
@@ -14343,6 +15080,9 @@ static int _core_def(mb_interpreter_t* s, void** l) {
 
 	_using_jump_set_of_structured(s, ast, _exit, result);
 
+	if(s->has_run)
+		goto _skip;
+
 	obj = (_object_t*)ast->data;
 	if(!_IS_ROUTINE(obj)) {
 		_handle_error_on_obj(s, SE_RN_ROUTINE_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
@@ -14383,6 +15123,7 @@ static int _core_def(mb_interpreter_t* s, void** l) {
 	ast = ast->next;
 	routine->func.basic.entry = ast;
 
+_skip:
 	_skip_to(s, &ast, _core_enddef, _DT_INVALID);
 
 	ast = ast->next;
@@ -14469,6 +15210,18 @@ static int _core_class(mb_interpreter_t* s, void** l) {
 	ast = ast->next;
 
 	_using_jump_set_of_structured(s, ast, _exit, result);
+
+	if(s->has_run) {
+		if(ast) {
+			_skip_to(s, &ast, _core_endclass, _DT_NIL);
+
+			ast = ast->next;
+		}
+
+		*l = ast;
+
+		return result;
+	}
 
 	obj = (_object_t*)ast->data;
 	obj = _GET_CLASS(obj);
@@ -14701,7 +15454,7 @@ static int _core_lambda(mb_interpreter_t* s, void** l) {
 	int brackets = 0;
 	_var_t* var = 0;
 	_object_t* obj = 0;
-	unsigned int ul = 0;
+	unsigned ul = 0;
 	bool_t popped = false;
 
 	mb_assert(s && l);
@@ -14754,7 +15507,6 @@ static int _core_lambda(mb_interpreter_t* s, void** l) {
 		ast = (_ls_node_t*)*l;
 		if(_IS_FUNC(ast->data, _core_close_bracket))
 			break;
-		ast = ast->next;
 		*l = ast;
 	}
 
@@ -15168,7 +15920,7 @@ static int _std_srnd(mb_interpreter_t* s, void** l) {
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
-	srand((unsigned int)seed);
+	srand((unsigned)seed);
 
 	return result;
 }
@@ -15623,9 +16375,13 @@ static int _std_str(mb_interpreter_t* s, void** l) {
 	case MB_DT_REAL:
 		lbuf = 1 /* - */ + (DBL_MAX_10_EXP + 1) /* 308 + 1 digits */ + 1 /* . */ + 6 /* precision */ + 1 /* \0 */;
 		_RESIZE_CHAR_BUF(buf, lbuf);
+#ifdef MB_MANUAL_REAL_FORMATTING
+		_real_to_str(arg.value.float_point, _CHAR_BUF_PTR(buf), lbuf, 5);
+#else /* MB_MANUAL_REAL_FORMATTING */
 		if((size_t)sprintf(_CHAR_BUF_PTR(buf), MB_REAL_FMT, arg.value.float_point) >= lbuf) {
 			mb_assert(0 && "Buffer overflow.");
 		}
+#endif /* MB_MANUAL_REAL_FORMATTING */
 
 		break;
 #ifdef MB_ENABLE_CLASS
@@ -16074,24 +16830,20 @@ _print:
 			} else if(val_ptr->type == _DT_INT) {
 				_get_printer(s)(MB_INT_FMT, val_ptr->data.integer);
 			} else if(val_ptr->type == _DT_REAL) {
-				_get_printer(s)(MB_REAL_FMT, val_ptr->data.float_point);
-			} else if(val_ptr->type == _DT_STRING) {
-#if defined MB_CP_VC && defined MB_ENABLE_UNICODE
-				char* loc = setlocale(LC_ALL, "");
-				char* str = val_ptr->data.string ? val_ptr->data.string : MB_NULL_STRING;
+#ifdef MB_MANUAL_REAL_FORMATTING
 				_dynamic_buffer_t buf;
-				size_t lbuf = 0;
+				size_t lbuf = 32;
 				_INIT_BUF(buf);
-				while((lbuf = (size_t)mb_bytes_to_wchar(str, &_WCHAR_BUF_PTR(buf), _WCHARS_OF_BUF(buf))) > _WCHARS_OF_BUF(buf)) {
-					_RESIZE_WCHAR_BUF(buf, lbuf);
-				}
-				_get_printer(s)("%ls", _WCHAR_BUF_PTR(buf));
+				_RESIZE_CHAR_BUF(buf, lbuf);
+				_real_to_str(val_ptr->data.float_point, _CHAR_BUF_PTR(buf), lbuf, 5);
+				_get_printer(s)("%s", _CHAR_BUF_PTR(buf));
 				_DISPOSE_BUF(buf);
-				setlocale(LC_ALL, loc);
-#else /* MB_CP_VC && MB_ENABLE_UNICODE */
-				_get_printer(s)("%s", val_ptr->data.string ? val_ptr->data.string : MB_NULL_STRING);
-#endif /* MB_CP_VC && MB_ENABLE_UNICODE */
-				if(!val_ptr->ref && val_ptr->data.string && !pathed_str) {
+#else /* MB_MANUAL_REAL_FORMATTING */
+				_get_printer(s)(MB_REAL_FMT, val_ptr->data.float_point);
+#endif /* MB_MANUAL_REAL_FORMATTING */
+			} else if(val_ptr->type == _DT_STRING) {
+				_print_string(s, val_ptr);
+				if(!val_ptr->is_ref && val_ptr->data.string && !pathed_str) {
 					safe_free(val_ptr->data.string);
 				}
 #ifdef MB_ENABLE_USERTYPE_REF
@@ -16204,6 +16956,16 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 
 		goto _exit;
 	}
+	if(obj->type == _DT_STRING) {
+		_print_string(s, obj);
+		ast = ast->next;
+		obj = (_object_t*)ast->data;
+		if(!_IS_SEP(obj, ',')) {
+			_handle_error_on_obj(s, SE_RN_COMMA_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
+		}
+		ast = ast->next;
+		obj = (_object_t*)ast->data;
+	}
 	if(obj->type != _DT_VAR) {
 		_handle_error_on_obj(s, SE_RN_VARIABLE_EXPECTED, s->source_file, DON(ast), MB_FUNC_ERR, _exit, result);
 	}
@@ -16223,7 +16985,7 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 		ast = ast->next;
 	} else if(obj->data.variable->data->type == _DT_STRING) {
 		size_t len = 0;
-		if(obj->data.variable->data->data.string) {
+		if(obj->data.variable->data->data.string && !obj->data.variable->data->is_ref) {
 			safe_free(obj->data.variable->data->data.string);
 		}
 		len = (size_t)_get_inputer(s)(line, sizeof(line));
@@ -16241,6 +17003,7 @@ static int _std_input(mb_interpreter_t* s, void** l) {
 			}
 			_DISPOSE_BUF(wbuf);
 			obj->data.variable->data->data.string = _HEAP_CHAR_BUF(buf);
+			obj->data.variable->data->is_ref = false;
 		} while(0);
 #else /* MB_CP_VC && MB_ENABLE_UNICODE */
 		obj->data.variable->data->data.string = mb_memdup(line, (unsigned)(len + 1));
@@ -16451,8 +17214,8 @@ _exit:
 	return result;
 }
 
-/* PEEK statement */
-static int _coll_peek(mb_interpreter_t* s, void** l) {
+/* BACK statement */
+static int _coll_back(mb_interpreter_t* s, void** l) {
 	int result = MB_FUNC_OK;
 	mb_value_t coll;
 	mb_value_t val;
@@ -16469,7 +17232,7 @@ static int _coll_peek(mb_interpreter_t* s, void** l) {
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_value(s, l, &coll));
-	os = _try_overridden(s, l, &coll, _COLL_ID_PEEK, MB_MF_COLL);
+	os = _try_overridden(s, l, &coll, _COLL_ID_BACK, MB_MF_COLL);
 	if((os & MB_MS_DONE) == MB_MS_NONE) {
 		if(coll.type != MB_DT_LIST) {
 			_handle_error_on_obj(s, SE_RN_LIST_EXPECTED, s->source_file, DON2(l), MB_FUNC_ERR, _exit, result);
