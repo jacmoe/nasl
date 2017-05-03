@@ -19,14 +19,14 @@ Nasl is Not A Sixteen-bit Library
 ## Requirements
 
 * CMake 2.8+
-* Glfw3
+* [Glfw3][glfw]
 * Glew (Optionally)
 
 ## Using
 
-* MY-BASIC
-* Nuklear
-* stb_image
+* [MY-BASIC][mybasic]
+* [Nuklear][nuklear]
+* [stb_image][stbimage]
 
 ## How to build
 
@@ -34,3 +34,10 @@ Nasl is Not A Sixteen-bit Library
     cd build
     ccmake ..
     make -j4
+
+
+
+[stbimage]: https://github.com/nothings/stb "stb library"
+[mybasic]: https://github.com/paladin-t/my_basic "MY-BASIC"
+[nuklear]: https://github.com/vurtun/nuklear "Nuklear"
+[glfw]: http://www.glfw.org/ "GLFW"
