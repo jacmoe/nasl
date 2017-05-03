@@ -14,10 +14,9 @@
 cmake_minimum_required(VERSION 2.8.12)
 project(nasl)
 
-set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/)
-
 include(CMakeToolsHelpers OPTIONAL)
 
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/)
 
 # Dependencies
 # ------------
@@ -38,6 +37,7 @@ endif()
 set(SRCDIR "./src")
 set(SHADERDIR "./shaders")
 set(THIRDPARTY "./src/3rd")
+set(NASLDIR "./src/nasl")
 
 # Main target build
 # -----------------
@@ -45,7 +45,8 @@ set(THIRDPARTY "./src/3rd")
 set(TARGET_NAME nasl)
 
 set(Sources
-    #${SRCDIR}/defs.h
+    ${NASLDIR}/script.h
+    ${NASLDIR}/script.c
 )
 
 
@@ -72,6 +73,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -pedantic -Wextra")
 
 include_directories(
     ${SRCDIR}
+    ${NASLDIR}
     ${THIRDPARTY}
     ${GLFW_INCLUDE_DIRS}
     ${OPENGL_INCLUDE_DIRS}
