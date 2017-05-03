@@ -49,6 +49,10 @@ set(Sources
     ${NASLDIR}/script.c
     ${NASLDIR}/graphics.h
     ${NASLDIR}/graphics.c
+    ${NASLDIR}/color.h
+    ${NASLDIR}/color.c
+    ${NASLDIR}/buffer.h
+    ${NASLDIR}/buffer.c
 )
 
 

@@ -1,33 +1,149 @@
 #include "graphics.h"
+#include <stdlib.h>
+#include <stdio.h>
 
 static GLFWwindow *window = NULL;
 
-int nasl_graphics_init(int width, int height)
+static void error_callback(int e, const char *d)
+{
+    printf("Error %d: %s\n", e, d);
+}
+
+
+static char *ReadFile(const char *path) {
+    FILE *f = fopen(path, "r");
+    if (!f) {
+        fprintf(stderr, "Coudn't read file: '%s'\n", path);
+    }
+
+    fseek(f, 0, SEEK_END);
+    size_t fsize = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    char *buf = malloc(fsize + 1);
+    fread(buf, fsize, 1, f);
+    buf[fsize] = '\0';
+
+    fclose(f);
+
+    return buf;
+}
+
+
+static GLuint CompileShaderProgram() {
+    char *vertexSource = ReadFile("assets/shaders/vertex.glsl");
+    GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertexShader, 1, (const GLchar **)&vertexSource, NULL);
+    glCompileShader(vertexShader);
+    free(vertexSource);
+
+    char *fragmentSource = ReadFile("assets/shaders/frag.glsl");
+    GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragmentShader, 1, (const GLchar **)&fragmentSource, NULL);
+    glCompileShader(fragmentShader);
+    free(fragmentSource);
+
+    GLuint shaderProgram = glCreateProgram();
+    glAttachShader(shaderProgram, vertexShader);
+    glAttachShader(shaderProgram, fragmentShader);
+    glLinkProgram(shaderProgram);
+
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+
+    return shaderProgram;
+}
+
+
+static GLuint BuildQuad(GLuint shaderProgram) {
+    GLfloat vertices[] = {
+        // Vertex coord  Texture coord
+        1,  1,           1, 0,
+        -1,  1,          0, 0,
+        1, -1,           1, 1,
+        -1, -1,          0, 1
+    };
+
+    GLuint vao;
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+
+    GLuint vbo;
+    glGenBuffers(1, &vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    // Vertex attributes
+    GLint posAttrib = glGetAttribLocation(shaderProgram, "position");
+    glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float),
+            0);
+    glEnableVertexAttribArray(posAttrib);
+
+    GLint texAttrib = glGetAttribLocation(shaderProgram, "texcoord");
+    glVertexAttribPointer(texAttrib, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float),
+            (void *)(2 * sizeof(float)));
+    glEnableVertexAttribArray(texAttrib);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
+    return vao;
+}
+
+
+static GLuint BuildTexture(int width, int height) {
+    GLuint tex;
+
+    glGenTextures(1, &tex);
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA,
+            GL_UNSIGNED_BYTE, NULL);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    return tex;
+}
+
+
+static void InitOpenGL(int width, int height) {
+    GLuint shaderProgram = CompileShaderProgram();
+    GLuint quad_vao = BuildQuad(shaderProgram);
+    GLuint tex = BuildTexture(width, height);
+
+    glUseProgram(shaderProgram);
+    glBindVertexArray(quad_vao);
+    glBindTexture(GL_TEXTURE_2D, tex);
+}
+
+int nasl_graphics_init(int width, int height, const char* title)
 {
     glfwInit();
 
-    /* Compute window resolution from the main monitor's */
-    //const GLFWvidmode *mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-    //const int width = mode->width / 2;
-    //const int height = mode->height / 2;
-
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
     // Create window and OpenGL context
-    window = glfwCreateWindow(width, height, "engine", NULL, NULL);
+    window = glfwCreateWindow(width, height, title, NULL, NULL);
+
+    // Position window in the middle of the screen
+    const GLFWvidmode *mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+    int xpos = (mode->width / 2) - width / 2;
+    int ypos = (mode->height / 2) - height / 2;
+    glfwSetWindowPos(window, xpos, ypos);
+
     glfwMakeContextCurrent(window);
     glViewport(0, 0, width, height);
-
-    // Disable cursor
-    //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
     // Init GLEW
     glewExperimental = GL_TRUE;
     glewInit();
-    return 0;
+    InitOpenGL(width, height);
+   return 0;
 }
 
 int nasl_graphics_shutdown()
@@ -40,6 +156,30 @@ int nasl_graphics_running()
 {
     return !glfwWindowShouldClose(window);
 }
+
+static uint32_t get_time()
+{
+    return 1000 * glfwGetTime();
+}
+
+uint32_t nasl_graphics_render(Buffer *buf)
+{
+    uint32_t start = get_time();
+
+    glTexSubImage2D(
+            GL_TEXTURE_2D,              // target
+            0,                          // level of detail
+            0, 0,                       // xoffset, yoffset
+            buf->width, buf->height,    // width, height
+            GL_RGBA, GL_UNSIGNED_BYTE,  // format, type
+            buf->pixels                 // pixels
+            );
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glfwSwapBuffers(window);
+
+    return get_time() - start;
+}
+
 
 void nasl_graphics_present()
 {
