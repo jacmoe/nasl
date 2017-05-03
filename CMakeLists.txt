@@ -47,6 +47,8 @@ set(TARGET_NAME nasl)
 set(Sources
     ${NASLDIR}/script.h
     ${NASLDIR}/script.c
+    ${NASLDIR}/graphics.h
+    ${NASLDIR}/graphics.c
 )
 
 
