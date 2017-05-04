@@ -65,7 +65,9 @@ int main()
     // Create main buffer
     Buffer* buffer = nasl_buffer_create(800,600);
     // Clear main buffer to a light grey color
-    nasl_buffer_clear(buffer, c64_lightblue);
+    nasl_buffer_clear(buffer, GREY3);
+
+    printf("%#08x\n", c64_grey3);
 
     // Create a sub_buffer
     Buffer* sub_buffer = nasl_buffer_get_subbuffer(buffer, 50, 50, 700, 400);
