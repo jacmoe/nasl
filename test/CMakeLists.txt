@@ -12,44 +12,41 @@
 #
 #
 
-# Paths
-# -----
+# Dependencies
+# ------------
 
-set(TARGET_NAME nasl)
+find_package(PkgConfig REQUIRED)
+pkg_search_module(GLFW REQUIRED glfw3)
 
-set(Headers
-    include/nasl_script.h
-    include/nasl_graphics.h
-    include/nasl_color.h
-    include/nasl_buffer.h
-)
+find_package(OpenGL REQUIRED)
 
-set(Sources
-    src/nasl_script.c
-    src/nasl_graphics.c
-    src/nasl_color.c
-    src/nasl_buffer.c
-)
+find_package(GLEW 1.10)
+if(${GLEW_FOUND})
+  add_definitions(-DUSE_GLEW)
+endif()
 
-set(3rdParty_Headers
-    3rd/include/my_basic.h
-    3rd/include/nuklear.h
-    3rd/include/nuklear_glfw_gl3.h
-    3rd/include/stb_image.h
-)
 
-set(3rdParty_Source
-    3rd/src/my_basic.c
-)
+
+set(TARGET_NAME nasl_test)
 
 include_directories(
-    include
-    3rd/include
+    ../nasl/include
+    ../nasl/3rd/include
+    ${GLFW_INCLUDE_DIRS}
+    ${OPENGL_INCLUDE_DIRS}
+    ${GLEW_INCLUDE_DIRS}
 )
 
-add_library(${TARGET_NAME} STATIC
-    ${Headers}
-    ${Sources}
-    ${3rdParty_Headers}
-    ${3rdParty_Source}
+add_executable(${TARGET_NAME}
+    test.c
+)
+
+set_property(TARGET ${TARGET_NAME} PROPERTY C_STANDARD 99) # 90 99 11
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -pedantic -Wextra")
+
+target_link_libraries(${TARGET_NAME}
+    nasl
+    ${GLFW_STATIC_LIBRARIES}
+    ${OPENGL_LIBRARIES}
+    ${GLEW_LIBRARIES}
 )

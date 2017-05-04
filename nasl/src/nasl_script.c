@@ -1,6 +1,6 @@
+#include "nasl_script.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "script.h"
 #include <assert.h>
 #include <stdarg.h>
 

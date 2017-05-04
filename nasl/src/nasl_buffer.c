@@ -2,8 +2,8 @@
 #include <assert.h>
 #include <string.h>
 
-#include "buffer.h"
-#include "color.h"
+#include "nasl_buffer.h"
+#include "nasl_color.h"
 
 Buffer *nasl_buffer_create(int width, int height)
 {

@@ -15,9 +15,9 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#include "nasl/include/script.h"
-#include "nasl/include/graphics.h"
-#include "nasl/include/buffer.h"
+#include "nasl_script.h"
+#include "nasl_graphics.h"
+#include "nasl_buffer.h"
 
 static int init();
 static int shutdown();

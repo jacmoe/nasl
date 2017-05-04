@@ -1,4 +1,4 @@
-#include "graphics.h"
+#include "nasl_graphics.h"
 #include <stdlib.h>
 #include <stdio.h>
 

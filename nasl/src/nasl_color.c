@@ -1,4 +1,4 @@
-#include "color.h"
+#include "nasl_color.h"
 
 uint32_t color_scale(uint32_t c, double intensity)
 {

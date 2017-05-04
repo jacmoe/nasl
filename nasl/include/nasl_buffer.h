@@ -5,7 +5,7 @@
 #define NASLBUFFER_H
 
 //#include "dbg.h"
-#include "color.h"
+#include "nasl_color.h"
 
 typedef struct Buffer
 {
