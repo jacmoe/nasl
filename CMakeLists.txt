@@ -34,48 +34,15 @@ endif()
 # Paths
 # -----
 
-set(SRCDIR "./src")
+set(SRCDIR "src")
 set(SHADERDIR "./shaders")
-set(THIRDPARTY "./src/3rd")
-set(NASLDIR "./src/nasl")
+set(THIRDPARTY "src/3rd")
+set(NASLDIR "src/nasl")
 
 # Main target build
 # -----------------
 
-set(TARGET_NAME nasl)
-
-set(Sources
-    ${NASLDIR}/script.h
-    ${NASLDIR}/script.c
-    ${NASLDIR}/graphics.h
-    ${NASLDIR}/graphics.c
-    ${NASLDIR}/color.h
-    ${NASLDIR}/color.c
-    ${NASLDIR}/buffer.h
-    ${NASLDIR}/buffer.c
-)
-
-
-set(3rdParty_Headers
-    ${THIRDPARTY}/my_basic.h
-    ${THIRDPARTY}/nuklear.h
-    ${THIRDPARTY}/nuklear_glfw_gl3.h
-    ${THIRDPARTY}/stb_image.h
-)
-
-set(3rdParty_Source
-    ${THIRDPARTY}/my_basic.c
-)
-
-add_executable(${TARGET_NAME}
-    ${SRCDIR}/main.c
-    ${Sources}
-    ${3rdParty_Headers}
-    ${3rdParty_Source}
-)
-
-set_property(TARGET ${TARGET_NAME} PROPERTY C_STANDARD 99) # 90 99 11
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -pedantic -Wextra")
+set(TARGET_NAME nasl_test)
 
 include_directories(
     ${SRCDIR}
@@ -86,7 +53,17 @@ include_directories(
     ${GLEW_INCLUDE_DIRS}
 )
 
+add_subdirectory(src)
+
+add_executable(${TARGET_NAME}
+    test.c
+)
+
+set_property(TARGET ${TARGET_NAME} PROPERTY C_STANDARD 99) # 90 99 11
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -pedantic -Wextra")
+
 target_link_libraries(${TARGET_NAME}
+    nasl
     ${GLFW_STATIC_LIBRARIES}
     ${OPENGL_LIBRARIES}
     ${GLEW_LIBRARIES}
