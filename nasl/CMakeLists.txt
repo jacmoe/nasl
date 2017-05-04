@@ -17,30 +17,33 @@
 
 set(TARGET_NAME nasl)
 
-set(Sources
-    nasl/script.h
-    nasl/script.c
-    nasl/graphics.h
-    nasl/graphics.c
-    nasl/color.h
-    nasl/color.c
-    nasl/buffer.h
-    nasl/buffer.c
+set(Headers
+    include/script.h
+    include/graphics.h
+    include/color.h
+    include/buffer.h
 )
 
+set(Sources
+    src/script.c
+    src/graphics.c
+    src/color.c
+    src/buffer.c
+)
 
 set(3rdParty_Headers
-    3rd/my_basic.h
-    3rd/nuklear.h
-    3rd/nuklear_glfw_gl3.h
-    3rd/stb_image.h
+    3rd/include/my_basic.h
+    3rd/include/nuklear.h
+    3rd/include/nuklear_glfw_gl3.h
+    3rd/include/stb_image.h
 )
 
 set(3rdParty_Source
-    3rd/my_basic.c
+    3rd/src/my_basic.c
 )
 
 add_library(${TARGET_NAME} STATIC
+    ${Headers}
     ${Sources}
     ${3rdParty_Headers}
     ${3rdParty_Source}

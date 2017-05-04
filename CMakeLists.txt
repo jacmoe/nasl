@@ -34,10 +34,7 @@ endif()
 # Paths
 # -----
 
-set(SRCDIR "src")
 set(SHADERDIR "./shaders")
-set(THIRDPARTY "src/3rd")
-set(NASLDIR "src/nasl")
 
 # Main target build
 # -----------------
@@ -45,15 +42,14 @@ set(NASLDIR "src/nasl")
 set(TARGET_NAME nasl_test)
 
 include_directories(
-    ${SRCDIR}
-    ${NASLDIR}
-    ${THIRDPARTY}
+    nasl/include
+    nasl/3rd/include
     ${GLFW_INCLUDE_DIRS}
     ${OPENGL_INCLUDE_DIRS}
     ${GLEW_INCLUDE_DIRS}
 )
 
-add_subdirectory(src)
+add_subdirectory(nasl)
 
 add_executable(${TARGET_NAME}
     test.c

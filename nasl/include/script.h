@@ -1,7 +1,7 @@
 #ifndef NASLSCRIPT_H
 #define NASLSCRIPT_H
 
-#include "3rd/my_basic.h"
+#include "my_basic.h"
 
 void nasl_script_init();
 void nasl_script_run(char* file);
