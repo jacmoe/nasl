@@ -14,6 +14,7 @@
 
 # Paths
 # -----
+project(nasl_lib)
 
 set(TARGET_NAME nasl)
 
