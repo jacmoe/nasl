@@ -25,6 +25,8 @@ enum Color
     TRANSPARENT = 0xFFFF00,
 };
 
+extern uint32_t c64_palette[16];
+
 #define GETR(c) (((c) >> 0) & 0xFF)
 #define GETG(c) (((c) >> 8) & 0xFF)
 #define GETB(c) (((c) >> 16) & 0xFF)
