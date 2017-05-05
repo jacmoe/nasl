@@ -18,6 +18,7 @@
 #include "nasl_script.h"
 #include "nasl_graphics.h"
 #include "nasl_buffer.h"
+#include "nasl_draw.h"
 
 static int init();
 static int shutdown();
@@ -57,6 +58,9 @@ int main()
             row += pal_height;
         }
     }
+
+    // Draw a test line ..
+    nasl_draw_line(buffer, 50, 50, 200, 40, RED);
 
     // Main loop
     while(nasl_graphics_running())
