@@ -28,26 +28,33 @@ int main()
 
     init();
 
+    int buffer_width = 320;
+    int buffer_height = 200;
+
     // Create main buffer
-    Buffer* buffer = nasl_buffer_create(320,200);
+    Buffer* buffer = nasl_buffer_create(buffer_width, buffer_height);
     // Clear main buffer to a blue color
     nasl_buffer_clear(buffer, BLUE);
 
+    int pal_offset = (buffer_width / 5) / 2;
+    int pal_width = (buffer_width - (pal_offset * 2)) / 4;
+    int pal_height = (buffer_height - (pal_offset * 2)) / 4;
+
     // Create a sub_buffer
-    Buffer* sub_buffer = nasl_buffer_create(55,25);
+    Buffer* sub_buffer = nasl_buffer_create(pal_width,pal_height);
 
     // Draw a palette by blitting 16 different sub_buffers into the main buffer
     int col = 0;
-    int row = 50;
+    int row = pal_offset;
     for(int buf = 0; buf < 16; buf++)
     {
         nasl_buffer_clear(sub_buffer, c64_palette[buf]);
-        nasl_buffer_blit(buffer, sub_buffer, 50 + (55 * col), row);
+        nasl_buffer_blit(buffer, sub_buffer, pal_offset + (pal_width * col), row);
         col++;
         if(col % 4 == 0)
         {
             col = 0;
-            row += 25;
+            row += pal_height;
         }
     }
 
@@ -74,7 +81,7 @@ static int init()
     nasl_script_init();
     nasl_script_run("assets/scripts/init.bas");
 
-    nasl_graphics_init(320, 200, "nasl test", 0);
+    nasl_graphics_init(320, 200, "nasl test", 0, 3);
 
     glfwSetKeyCallback(nasl_graphics_get_window(), key_callback);
 
