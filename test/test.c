@@ -19,6 +19,8 @@
 #include "nasl_graphics.h"
 #include "nasl_buffer.h"
 #include "nasl_draw.h"
+#include "nasl_sprite.h"
+
 
 static int init();
 static int shutdown();
@@ -31,6 +33,8 @@ int main()
 
     int buffer_width = 320;
     int buffer_height = 200;
+
+    SpriteSheet ascii = nasl_sprite_load("assets/fonts/ascii.png", 16, 16);
 
     // Create main buffer
     Buffer* buffer = nasl_buffer_create(buffer_width, buffer_height);
@@ -61,6 +65,9 @@ int main()
 
     // Draw a test line ..
     nasl_draw_line(buffer, 50, 50, 200, 40, RED);
+
+    // Draw some text ..
+    nasl_draw_text(buffer, ascii, 100, 50, "Hello World!!");
 
     // Main loop
     while(nasl_graphics_running())

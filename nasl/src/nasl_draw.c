@@ -1,6 +1,8 @@
 #include "nasl_draw.h"
 #include <stdlib.h> // for abs
 #include <stdarg.h> // for va_start, etc.
+#include <string.h> // for strlen
+#include <stdio.h> // for vsnprintf
 
 
 // Doom's version of Bresenham
