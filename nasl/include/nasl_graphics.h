@@ -6,7 +6,7 @@
 
 #include "nasl_buffer.h"
 
-int nasl_graphics_init(int width, int height, const char* title);
+int nasl_graphics_init(int width, int height, const char* title, int fullscreen);
 int nasl_graphics_shutdown();
 
 int nasl_graphics_running();

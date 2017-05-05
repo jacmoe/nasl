@@ -118,7 +118,7 @@ static void InitOpenGL(int width, int height) {
     glBindTexture(GL_TEXTURE_2D, tex);
 }
 
-int nasl_graphics_init(int width, int height, const char* title)
+int nasl_graphics_init(int width, int height, const char* title, int fullscreen)
 {
     glfwInit();
 
@@ -128,16 +128,29 @@ int nasl_graphics_init(int width, int height, const char* title)
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
     // Create window and OpenGL context
-    window = glfwCreateWindow(width, height, title, NULL, NULL);
+    window = NULL;
+    if(fullscreen)
+    {
+        window = glfwCreateWindow(width, height, title, glfwGetPrimaryMonitor(), NULL);
+    } else {
+        window = glfwCreateWindow(width, height, title, NULL, NULL);
+    }
 
     // Position window in the middle of the screen
+    ///*
     const GLFWvidmode *mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
     int xpos = (mode->width / 2) - width / 2;
     int ypos = (mode->height / 2) - height / 2;
     glfwSetWindowPos(window, xpos, ypos);
-
+    //*/
     glfwMakeContextCurrent(window);
-    glViewport(0, 0, width, height);
+
+    if(fullscreen)
+    {
+        glViewport(0, 0, mode->width, mode->height);
+    } else {
+        glViewport(0, 0, width, height);
+    }
 
     // Init GLEW
     glewExperimental = GL_TRUE;
