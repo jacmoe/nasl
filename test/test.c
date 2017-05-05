@@ -20,6 +20,7 @@
 #include "nasl_buffer.h"
 #include "nasl_draw.h"
 #include "nasl_sprite.h"
+#include "nasl_image_load.h"
 
 
 static int init();
@@ -69,6 +70,15 @@ int main()
     // Draw some text ..
     nasl_draw_text(buffer, ascii, 100, 50, "Hello World!!");
 
+    // load an image ..
+    Buffer* image_buffer = nasl_image_load("assets/textures/ceil.png");
+    nasl_buffer_blit(buffer, image_buffer, 10, 40);
+    image_buffer = nasl_image_load("assets/textures/floor.png");
+    nasl_buffer_blit(buffer, image_buffer, 50, 80);
+    image_buffer = nasl_image_load("assets/textures/wall.png");
+    nasl_buffer_blit(buffer, image_buffer, 100, 120);
+    nasl_buffer_destroy(image_buffer);
+
     // Main loop
     while(nasl_graphics_running())
     {
@@ -92,7 +102,7 @@ static int init()
     nasl_script_init();
     nasl_script_run("assets/scripts/init.bas");
 
-    nasl_graphics_init(320, 200, "nasl test", 0, 3);
+    nasl_graphics_init(320, 200, "nasl test", 1, 3);
 
     glfwSetKeyCallback(nasl_graphics_get_window(), key_callback);
 
