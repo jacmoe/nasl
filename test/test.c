@@ -29,28 +29,26 @@ int main()
 
     // Create main buffer
     Buffer* buffer = nasl_buffer_create(800,600);
-    // Clear main buffer to a light grey color
-    nasl_buffer_clear(buffer, GREY3);
+    // Clear main buffer to a blue color
+    nasl_buffer_clear(buffer, BLUE);
 
     // Create a sub_buffer
-    Buffer* sub_buffer = nasl_buffer_get_subbuffer(buffer, 50, 50, 700, 400);
-    nasl_buffer_clear(sub_buffer, BLACK);
+    Buffer* sub_buffer = nasl_buffer_create(175,100);
 
-    // Draw the C64 palette to the buffer
-    int offset = 0;
-    for (int palx = 0; palx < 16; palx++)
+    // Draw a palette by blitting 16 different sub_buffers into the main buffer
+    int col = 0;
+    int row = 50;
+    for(int buf = 0; buf < 16; buf++)
     {
-        for (int j = offset; j < offset + 25; j++)
+        nasl_buffer_clear(sub_buffer, c64_palette[buf]);
+        nasl_buffer_blit(buffer, sub_buffer, 50 + (175 * col), row);
+        col++;
+        if(col % 4 == 0)
         {
-            for (int i = 0; i < sub_buffer->width; i++)
-            {
-                nasl_buffer_set_pixel(sub_buffer, i, j, c64_palette[palx]);
-            }
+            col = 0;
+            row += 100;
         }
-        offset += 25;
     }
-    // Blit sub_buffer onto the main buffer
-    nasl_buffer_blit(buffer, sub_buffer, 50, 50);
 
 
     // Main loop
