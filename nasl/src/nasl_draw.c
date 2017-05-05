@@ -1,5 +1,7 @@
 #include "nasl_draw.h"
 #include <stdlib.h> // for abs
+#include <stdarg.h> // for va_start, etc.
+
 
 // Doom's version of Bresenham
 void nasl_draw_line(Buffer *b, int x0, int y0, int x1, int y1, uint32_t color)
@@ -41,5 +43,26 @@ void nasl_draw_line(Buffer *b, int x0, int y0, int x1, int y1, uint32_t color)
             y += sy;
             d += ax;
         }
+    }
+}
+
+void nasl_draw_text(Buffer *b, SpriteSheet ascii, int x, int y, const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+
+    char text[128] = "";
+    vsnprintf(text, 128, fmt, args);
+
+    va_end(args);
+
+    for (int i = 0; i < strlen(text); i++) {
+        unsigned char c = text[i];
+
+        int xx = c % 16;
+        int yy = c / 16;
+
+        Buffer *bitmap = nasl_sprite_get(ascii, xx, yy);
+
+        nasl_buffer_blit(b, bitmap, x + i * 8, y);
     }
 }

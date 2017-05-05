@@ -24,6 +24,8 @@ set(Headers
     include/nasl_color.h
     include/nasl_buffer.h
     include/nasl_draw.h
+    include/nasl_image_load.h
+    include/nasl_sprite.h
 )
 
 set(Sources
@@ -32,6 +34,8 @@ set(Sources
     src/nasl_color.c
     src/nasl_buffer.c
     src/nasl_draw.c
+    src/nasl_image_load.c
+    src/nasl_sprite.c
 )
 
 set(3rdParty_Headers
