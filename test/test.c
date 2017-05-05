@@ -21,6 +21,7 @@
 
 static int init();
 static int shutdown();
+static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 
 int main()
 {
@@ -50,7 +51,6 @@ int main()
         }
     }
 
-
     // Main loop
     while(nasl_graphics_running())
     {
@@ -76,7 +76,15 @@ static int init()
 
     nasl_graphics_init(320, 200, "nasl test", 0);
 
+    glfwSetKeyCallback(nasl_graphics_get_window(), key_callback);
+
     return 1;
+}
+
+static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, GLFW_TRUE);
 }
 
 static int shutdown()

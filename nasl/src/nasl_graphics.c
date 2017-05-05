@@ -9,6 +9,11 @@ static void error_callback(int e, const char *d)
     printf("Error %d: %s\n", e, d);
 }
 
+GLFWwindow* nasl_graphics_get_window()
+{
+    return window;
+}
+
 
 static char *ReadFile(const char *path) {
     FILE *f = fopen(path, "r");

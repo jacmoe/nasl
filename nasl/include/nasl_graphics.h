@@ -17,4 +17,6 @@ uint32_t nasl_graphics_render(Buffer *buf);
 
 void nasl_graphics_present();
 
+GLFWwindow* nasl_graphics_get_window();
+
 #endif /* NASLGRAPHICS_H */
