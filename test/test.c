@@ -97,12 +97,37 @@ int main()
     shutdown();
 }
 
+static int _swap(struct mb_interpreter_t* s, void** l) {
+	int result = MB_FUNC_OK;
+	void* v0 = 0;
+	void* v1 = 0;
+	mb_value_t val0;
+	mb_value_t val1;
+
+	mb_assert(s && l);
+
+	mb_check(mb_attempt_open_bracket(s, l));
+
+	mb_check(mb_get_var(s, l, &v0));
+	mb_check(mb_get_var(s, l, &v1));
+
+	mb_check(mb_attempt_close_bracket(s, l));
+
+	mb_get_var_value(s, v0, &val0);
+	mb_get_var_value(s, v1, &val1);
+	mb_set_var_value(s, v0, val1);
+	mb_set_var_value(s, v1, val0);
+
+	return result;
+}
+
 static int init()
 {
     nasl_script_init();
+    mb_register_func(nasl_script_get_interpreter(), "SWAP", _swap);
     nasl_script_run("assets/scripts/init.bas");
 
-    nasl_graphics_init(320, 200, "nasl test", 1, 3);
+    nasl_graphics_init(320, 200, "nasl test", 0, 3);
 
     glfwSetKeyCallback(nasl_graphics_get_window(), key_callback);
 

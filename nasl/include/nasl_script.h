@@ -1,9 +1,12 @@
 #ifndef NASLSCRIPT_H
 #define NASLSCRIPT_H
 
+#include <assert.h> // for mb_assert
+
 #include "my_basic.h"
 
 void nasl_script_init();
+struct mb_interpreter_t* nasl_script_get_interpreter();
 void nasl_script_run(char* file);
 void nasl_script_shutdown();
 
