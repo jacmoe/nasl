@@ -10,7 +10,7 @@
 
 #include "stb_image.h"
 
-#include "nasl_image_load.h"
+#include "nasl_image.h"
 #include "nasl_buffer.h"
 
 

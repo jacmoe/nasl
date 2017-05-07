@@ -34,5 +34,6 @@ extern uint32_t c64_palette[16];
 #define BUILDRGB(r, g, b) ((r) | (g) << 8 | (b) << 16)
 
 uint32_t color_scale(uint32_t color, double intensity);
+int nasl_color_scripting_init();
 
 #endif /* NASLCOLOR_H */

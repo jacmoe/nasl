@@ -16,6 +16,9 @@ typedef struct Buffer
 // Returns a Buffer of the given width and height.
 Buffer *nasl_buffer_create(int width, int height);
 
+// Register Buffer scripting methods
+int nasl_buffer_scripting_init();
+
 // Free a Buffer
 void nasl_buffer_destroy(Buffer *buf);
 

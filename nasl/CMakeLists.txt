@@ -24,18 +24,24 @@ set(Headers
     include/nasl_color.h
     include/nasl_buffer.h
     include/nasl_draw.h
-    include/nasl_image_load.h
+    include/nasl_image.h
     include/nasl_sprite.h
 )
 
 set(Sources
     src/nasl_script.c
     src/nasl_graphics.c
+    src/nasl_graphics_scripting.c
     src/nasl_color.c
+    src/nasl_color_scripting.c
     src/nasl_buffer.c
+    src/nasl_buffer_scripting.c
     src/nasl_draw.c
-    src/nasl_image_load.c
+    src/nasl_draw_scripting.c
+    src/nasl_image.c
+    src/nasl_image_scripting.c
     src/nasl_sprite.c
+    src/nasl_sprite_scripting.c
 )
 
 set(3rdParty_Headers

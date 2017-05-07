@@ -7,5 +7,6 @@
 
 void nasl_draw_line(Buffer *b, int x0, int y0, int x1, int y1, uint32_t color);
 void nasl_draw_text(Buffer *b, SpriteSheet ascii, int x, int y, const char *fmt, ...);
+int nasl_draw_scripting_init();
 
 #endif /* NASLDRAW_H */
