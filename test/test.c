@@ -125,10 +125,15 @@ static int init()
 {
     nasl_script_init();
     mb_register_func(nasl_script_get_interpreter(), "SWAP", _swap);
-    nasl_buffer_scripting_init();
-    nasl_script_run("assets/scripts/init.bas");
+    
+    nasl_graphics_script_init();
+    nasl_buffer_script_init();
+    nasl_draw_script_init();
+    nasl_image_script_init();
 
     nasl_graphics_init(320, 200, "nasl test", 0, 3);
+
+    nasl_script_run("assets/scripts/init.bas");
 
     glfwSetKeyCallback(nasl_graphics_get_window(), key_callback);
 

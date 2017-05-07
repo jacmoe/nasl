@@ -17,7 +17,7 @@ typedef struct Buffer
 Buffer *nasl_buffer_create(int width, int height);
 
 // Register Buffer scripting methods
-int nasl_buffer_scripting_init();
+int nasl_buffer_script_init();
 
 // Free a Buffer
 void nasl_buffer_destroy(Buffer *buf);

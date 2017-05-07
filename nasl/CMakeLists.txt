@@ -31,17 +31,17 @@ set(Headers
 set(Sources
     src/nasl_script.c
     src/nasl_graphics.c
-    src/nasl_graphics_scripting.c
+    src/nasl_graphics_script.c
     src/nasl_color.c
-    src/nasl_color_scripting.c
+    src/nasl_color_script.c
     src/nasl_buffer.c
-    src/nasl_buffer_scripting.c
+    src/nasl_buffer_script.c
     src/nasl_draw.c
-    src/nasl_draw_scripting.c
+    src/nasl_draw_script.c
     src/nasl_image.c
-    src/nasl_image_scripting.c
+    src/nasl_image_script.c
     src/nasl_sprite.c
-    src/nasl_sprite_scripting.c
+    src/nasl_sprite_script.c
 )
 
 set(3rdParty_Headers
