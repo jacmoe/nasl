@@ -22,6 +22,7 @@
 #include "nasl_sprite.h"
 #include "nasl_image.h"
 
+static Buffer* buffer = 0;
 
 static int init();
 static int shutdown();
@@ -38,7 +39,7 @@ int main()
     SpriteSheet ascii = nasl_sprite_load("assets/fonts/ascii.png", 16, 16);
 
     // Create main buffer
-    Buffer* buffer = nasl_buffer_create(buffer_width, buffer_height);
+    buffer = nasl_buffer_create(buffer_width, buffer_height);
     // Clear main buffer to a blue color
     nasl_buffer_clear(buffer, BLUE);
 
@@ -78,6 +79,10 @@ int main()
     image_buffer = nasl_image_load("assets/textures/wall.png");
     nasl_buffer_blit(buffer, image_buffer, 100, 120);
     nasl_buffer_destroy(image_buffer);
+
+    // Run a script
+    nasl_script_run("assets/scripts/init.bas");
+
 
     // Main loop
     while(nasl_graphics_running())
@@ -121,10 +126,35 @@ static int _swap(struct mb_interpreter_t* s, void** l) {
 	return result;
 }
 
+static int _main_buffer(struct mb_interpreter_t* s, void** l)
+{
+	int result = MB_FUNC_OK;
+	Buffer* buf = 0;
+
+	mb_assert(s && l);
+
+	mb_check(mb_attempt_func_begin(s, l));
+
+	mb_check(mb_attempt_func_end(s, l));
+
+	buf = buffer;
+	if(!buf) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
+
+_exit:
+	mb_check(mb_push_usertype(s, l, (void*)buf));
+
+	return result;
+}
+
 static int init()
 {
     nasl_script_init();
     mb_register_func(nasl_script_get_interpreter(), "SWAP", _swap);
+    mb_register_func(nasl_script_get_interpreter(), "MAIN_BUFFER", _main_buffer);
     
     nasl_graphics_script_init();
     nasl_buffer_script_init();
@@ -132,8 +162,6 @@ static int init()
     nasl_image_script_init();
 
     nasl_graphics_init(320, 200, "nasl test", 0, 3);
-
-    nasl_script_run("assets/scripts/init.bas");
 
     glfwSetKeyCallback(nasl_graphics_get_window(), key_callback);
 
