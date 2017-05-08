@@ -69,7 +69,7 @@ int main()
     nasl_draw_line(buffer, 50, 50, 200, 40, RED);
 
     // Draw some text ..
-    nasl_draw_text(buffer, ascii, 100, 50, "Hello World!!");
+    nasl_draw_text(buffer, ascii, 100, 70, "Hello World!!");
 
     // load an image ..
     Buffer* image_buffer = nasl_image_load("assets/textures/ceil.png");

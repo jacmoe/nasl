@@ -78,6 +78,18 @@ void nasl_draw_text(Buffer *b, SpriteSheet ascii, int x, int y, const char *fmt,
 
         Buffer *bitmap = nasl_sprite_get(ascii, xx, yy);
 
-        nasl_buffer_blit(b, bitmap, x + i * 8, y);
+
+        int bx = x + i * 8;
+        for (int bj = 0; bj < bitmap->height; bj++)
+        {
+            for (int bi = 0; bi < bitmap->width; bi++)
+            {
+                uint32_t src_pixel = nasl_buffer_get_pixel(bitmap, bi, bj);
+                if (src_pixel != 0xff000000)
+                {
+                    nasl_buffer_set_pixel(b, bi + bx, bj + y, src_pixel);
+                }
+            }
+        }
     }
 }
