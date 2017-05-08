@@ -1,9 +1,26 @@
 import "constants.bas"
 
-src = buffer_create(10,10)
+' Create a blit buffer from main buffer
+blitbuf = sub_buffer(main_buffer, 10,10, 100, 100)
 
-buffer_clear(src, ORANGE)
+' Clear blit buffer to orange
+buffer_clear(blitbuf, ORANGE)
 
-buffer_blit(main_buffer, src, 50, 10)
+' Draw a cross hair
+for pix = 10 to 13
+    buffer_set_pixel(blitbuf, pix, pix, BROWN)
+next pix
+offset = 13
+for pix = 10 to 13
+    buffer_set_pixel(blitbuf, pix, offset, BROWN)
+    offset = offset - 1
+next pix
 
-buffer_destroy(src)
+' Print a color from a pixel
+print "Pixel : ", buffer_get_pixel(blitbuf, 10, 10), "!";
+
+' Blit buffer to main buffer
+buffer_blit(main_buffer, blitbuf, 50, 10)
+
+' Destroy blit buffer
+buffer_destroy(blitbuf)

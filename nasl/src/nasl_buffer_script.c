@@ -18,6 +18,9 @@ static int _buffer_create(struct mb_interpreter_t* s, void** l);
 static int _buffer_destroy(struct mb_interpreter_t* s, void** l);
 static int _buffer_clear(struct mb_interpreter_t* s, void** l);
 static int _buffer_blit(struct mb_interpreter_t* s, void** l);
+static int _buffer_get_pixel(struct mb_interpreter_t* s, void** l);
+static int _buffer_set_pixel(struct mb_interpreter_t* s, void** l);
+static int _buffer_get_subbuffer(struct mb_interpreter_t* s, void** l);
 
 int nasl_buffer_script_init()
 {
@@ -25,6 +28,9 @@ int nasl_buffer_script_init()
     mb_register_func(nasl_script_get_interpreter(), "BUFFER_DESTROY", _buffer_destroy);
     mb_register_func(nasl_script_get_interpreter(), "BUFFER_BLIT", _buffer_blit);
     mb_register_func(nasl_script_get_interpreter(), "BUFFER_CLEAR", _buffer_clear);
+    mb_register_func(nasl_script_get_interpreter(), "SUB_BUFFER", _buffer_get_subbuffer);
+    mb_register_func(nasl_script_get_interpreter(), "BUFFER_SET_PIXEL", _buffer_set_pixel);
+    mb_register_func(nasl_script_get_interpreter(), "BUFFER_GET_PIXEL", _buffer_get_pixel);
     return 1;
 }
 
@@ -139,6 +145,113 @@ static int _buffer_blit(struct mb_interpreter_t* s, void** l)
 	dst = (Buffer*)up1;
 	src = (Buffer*)up2;
     nasl_buffer_blit(dst, src, x, y);
+
+	return result;
+}
+
+static int _buffer_get_pixel(struct mb_interpreter_t* s, void** l)
+{
+	int result = MB_FUNC_OK;
+	Buffer* buf = 0;
+	void* up = 0;
+    int x = 0;
+    int y = 0;
+    uint32_t color = 0;
+
+	mb_assert(s && l);
+
+	mb_check(mb_attempt_open_bracket(s, l));
+
+	mb_check(mb_pop_usertype(s, l, &up));
+    mb_check(mb_pop_int(s, l, &x));
+    mb_check(mb_pop_int(s, l, &y));
+
+	mb_check(mb_attempt_close_bracket(s, l));
+
+	if(!up)
+		return MB_FUNC_ERR;
+
+	buf = (Buffer*)up;
+    color = nasl_buffer_get_pixel(buf, x, y);
+
+	if(!buf) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
+
+_exit:
+	mb_check(mb_push_int(s, l, (int)color));
+
+	return result;
+}
+
+static int _buffer_set_pixel(struct mb_interpreter_t* s, void** l)
+{
+	int result = MB_FUNC_OK;
+	Buffer* buf = 0;
+	void* up = 0;
+    int x = 0;
+    int y = 0;
+    int color = 0;
+
+	mb_assert(s && l);
+
+	mb_check(mb_attempt_open_bracket(s, l));
+
+	mb_check(mb_pop_usertype(s, l, &up));
+    mb_check(mb_pop_int(s, l, &x));
+    mb_check(mb_pop_int(s, l, &y));
+    mb_check(mb_pop_int(s, l, &color));
+
+	mb_check(mb_attempt_close_bracket(s, l));
+
+	if(!up)
+		return MB_FUNC_ERR;
+
+	buf = (Buffer*)up;
+    nasl_buffer_set_pixel(buf, x, y, color);
+
+	return result;
+}
+
+static int _buffer_get_subbuffer(struct mb_interpreter_t* s, void** l)
+{
+	int result = MB_FUNC_OK;
+	Buffer* src = 0;
+	Buffer* buf = 0;
+	void* up = 0;
+    int x = 0;
+    int y = 0;
+    int width = 0;
+    int height = 0;
+
+	mb_assert(s && l);
+
+	mb_check(mb_attempt_open_bracket(s, l));
+
+	mb_check(mb_pop_usertype(s, l, &up));
+    mb_check(mb_pop_int(s, l, &x));
+    mb_check(mb_pop_int(s, l, &y));
+    mb_check(mb_pop_int(s, l, &width));
+    mb_check(mb_pop_int(s, l, &height));
+
+	mb_check(mb_attempt_close_bracket(s, l));
+
+	if(!up)
+		return MB_FUNC_ERR;
+
+	src = (Buffer*)up;
+    buf = nasl_buffer_get_subbuffer(src, x, y, width, height);
+
+	if(!buf) {
+		result = MB_FUNC_ERR;
+
+		goto _exit;
+	}
+
+_exit:
+	mb_check(mb_push_usertype(s, l, (void*)buf));
 
 	return result;
 }
