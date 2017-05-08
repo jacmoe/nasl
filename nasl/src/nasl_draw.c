@@ -66,7 +66,7 @@ void nasl_draw_text(Buffer *b, SpriteSheet ascii, int x, int y, const char *fmt,
     va_start(args, fmt);
 
     char text[128] = "";
-    vsnprintf(text, 128, fmt, args);
+    vsnprintf(text, 128, fmt, args); // Write formatted data from variable argument list to sized buffer
 
     va_end(args);
 

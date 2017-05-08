@@ -1,3 +1,16 @@
+#
+#   This file is part of the
+# ███╗   ██╗ █████╗ ███████╗██╗     
+# ████╗  ██║██╔══██╗██╔════╝██║     
+# ██╔██╗ ██║███████║███████╗██║     
+# ██║╚██╗██║██╔══██║╚════██║██║     
+# ██║ ╚████║██║  ██║███████║███████╗
+# ╚═╝  ╚═══╝╚═╝  ╚═╝╚══════╝╚══════╝
+#   project : https://github.com/jacmoe/nasl
+#
+#   Copyright 2017 Jacob Moen
+#
+#
 project(PackageTest)
 cmake_minimum_required(VERSION 2.8.12)
 

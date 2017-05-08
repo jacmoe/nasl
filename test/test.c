@@ -110,6 +110,7 @@ static int init()
     nasl_buffer_script_init();
     nasl_draw_script_init();
     nasl_image_script_init();
+    nasl_color_script_init();
 
     nasl_graphics_init(320, 200, "nasl test", 0, 3);
 
