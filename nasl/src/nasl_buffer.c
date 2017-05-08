@@ -18,6 +18,8 @@
 #include "nasl_buffer.h"
 #include "nasl_color.h"
 
+static Buffer* main_buffer = 0;
+
 Buffer *nasl_buffer_create(int width, int height)
 {
     Buffer *b = malloc(sizeof(Buffer));
@@ -29,6 +31,16 @@ Buffer *nasl_buffer_create(int width, int height)
     memset(b->pixels, 0, sizeof(uint32_t) * width * height);
 
     return b;
+}
+
+void nasl_buffer_set_mainbuffer(Buffer *buf)
+{
+    main_buffer = buf;
+}
+
+Buffer* nasl_buffer_get_mainbuffer()
+{
+    return main_buffer;
 }
 
 void nasl_buffer_clear(Buffer *b, uint32_t color)

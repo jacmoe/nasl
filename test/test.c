@@ -22,8 +22,6 @@
 #include "nasl_sprite.h"
 #include "nasl_image.h"
 
-static Buffer* buffer = 0;
-
 static int init();
 static int shutdown();
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
@@ -39,9 +37,10 @@ int main()
     SpriteSheet ascii = nasl_sprite_load("assets/fonts/ascii.png", 16, 16);
 
     // Create main buffer
-    buffer = nasl_buffer_create(buffer_width, buffer_height);
+    Buffer* buffer = nasl_buffer_create(buffer_width, buffer_height);
     // Clear main buffer to a blue color
     nasl_buffer_clear(buffer, BLUE);
+    nasl_buffer_set_mainbuffer(buffer);
 
     int pal_offset = (buffer_width / 5) / 2;
     int pal_width = (buffer_width - (pal_offset * 2)) / 4;
@@ -102,35 +101,10 @@ int main()
     shutdown();
 }
 
-static int _main_buffer(struct mb_interpreter_t* s, void** l)
-{
-	int result = MB_FUNC_OK;
-	Buffer* buf = 0;
-
-	mb_assert(s && l);
-
-	mb_check(mb_attempt_func_begin(s, l));
-
-	mb_check(mb_attempt_func_end(s, l));
-
-	buf = buffer;
-	if(!buf) {
-		result = MB_FUNC_ERR;
-
-		goto _exit;
-	}
-
-_exit:
-	mb_check(mb_push_usertype(s, l, (void*)buf));
-
-	return result;
-}
-
 static int init()
 {
     nasl_script_init();
     nasl_script_set_import_dirs("assets/scripts");
-    mb_register_func(nasl_script_get_interpreter(), "MAIN_BUFFER", _main_buffer);
     
     nasl_graphics_script_init();
     nasl_buffer_script_init();
