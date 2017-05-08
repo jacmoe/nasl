@@ -1,12 +1,9 @@
-print "Hello Basic!"
-
-import "assets/scripts/test.bas"
+import "constants.bas"
 
 src = buffer_create(10,10)
-dst = main_buffer
 
-buffer_clear(src, 0x7777FF)
+buffer_clear(src, ORANGE)
 
-buffer_blit(dst, src, 50, 10)
+buffer_blit(main_buffer, src, 50, 10)
 
-buffer_destroy(buffer)
+buffer_destroy(src)

@@ -153,7 +153,7 @@ _exit:
 static int init()
 {
     nasl_script_init();
-    mb_register_func(nasl_script_get_interpreter(), "SWAP", _swap);
+    nasl_script_set_import_dirs("assets/scripts");
     mb_register_func(nasl_script_get_interpreter(), "MAIN_BUFFER", _main_buffer);
     
     nasl_graphics_script_init();
