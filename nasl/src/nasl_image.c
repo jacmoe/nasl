@@ -1,3 +1,16 @@
+/*
+*   This file is part of the
+* ███╗   ██╗ █████╗ ███████╗██╗     
+* ████╗  ██║██╔══██╗██╔════╝██║     
+* ██╔██╗ ██║███████║███████╗██║     
+* ██║╚██╗██║██╔══██║╚════██║██║     
+* ██║ ╚████║██║  ██║███████║███████╗
+* ╚═╝  ╚═══╝╚═╝  ╚═╝╚══════╝╚══════╝
+*   project : https://github.com/jacmoe/nasl
+*
+*   Copyright 2017 Jacob Moen
+*
+*/
 #include <stdlib.h>
 
 #define STB_IMAGE_IMPLEMENTATION

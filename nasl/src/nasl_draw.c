@@ -1,3 +1,16 @@
+/*
+*   This file is part of the
+* ███╗   ██╗ █████╗ ███████╗██╗     
+* ████╗  ██║██╔══██╗██╔════╝██║     
+* ██╔██╗ ██║███████║███████╗██║     
+* ██║╚██╗██║██╔══██║╚════██║██║     
+* ██║ ╚████║██║  ██║███████║███████╗
+* ╚═╝  ╚═══╝╚═╝  ╚═╝╚══════╝╚══════╝
+*   project : https://github.com/jacmoe/nasl
+*
+*   Copyright 2017 Jacob Moen
+*
+*/
 #include "nasl_draw.h"
 #include <stdlib.h> // for abs
 #include <stdarg.h> // for va_start, etc.
