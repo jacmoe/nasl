@@ -33,7 +33,7 @@ void nasl_buffer_set_mainbuffer(Buffer *buf);
 Buffer* nasl_buffer_get_mainbuffer();
 
 // Register Buffer scripting methods
-int nasl_buffer_script_init();
+void nasl_buffer_script_init();
 
 // Free a Buffer
 void nasl_buffer_destroy(Buffer* buf);

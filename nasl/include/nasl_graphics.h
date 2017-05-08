@@ -20,7 +20,7 @@
 #include "nasl_buffer.h"
 
 int nasl_graphics_init(int width, int height, const char* title, int fullscreen, int scalefactor);
-int nasl_graphics_script_init();
+void nasl_graphics_script_init();
 int nasl_graphics_shutdown();
 
 int nasl_graphics_running();

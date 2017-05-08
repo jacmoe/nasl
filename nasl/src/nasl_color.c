@@ -18,7 +18,7 @@ uint32_t c64_palette[16] = {
     0x5588DD, 0x004466, 0x7777FF, 0x333333, 0x777777, 0x66FFAA, 0xFF8800, 0xBBBBBB
 };
 
-uint32_t color_scale(uint32_t c, double intensity)
+uint32_t nasl_color_scale(uint32_t c, double intensity)
 {
     uint8_t red = GETR(c);
     uint8_t green = GETG(c);

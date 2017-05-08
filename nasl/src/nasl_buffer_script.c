@@ -24,7 +24,7 @@ static int _buffer_get_pixel(struct mb_interpreter_t* s, void** l);
 static int _buffer_set_pixel(struct mb_interpreter_t* s, void** l);
 static int _buffer_get_subbuffer(struct mb_interpreter_t* s, void** l);
 
-int nasl_buffer_script_init()
+void nasl_buffer_script_init()
 {
     mb_register_func(nasl_script_get_interpreter(), "BUFFER_CREATE", _buffer_create);
     mb_register_func(nasl_script_get_interpreter(), "MAIN_BUFFER", _get_main_buffer);
@@ -35,7 +35,6 @@ int nasl_buffer_script_init()
     mb_register_func(nasl_script_get_interpreter(), "SUB_BUFFER", _buffer_get_subbuffer);
     mb_register_func(nasl_script_get_interpreter(), "BUFFER_SET_PIXEL", _buffer_set_pixel);
     mb_register_func(nasl_script_get_interpreter(), "BUFFER_GET_PIXEL", _buffer_get_pixel);
-    return 1;
 }
 
 static int _buffer_create(struct mb_interpreter_t* s, void** l)

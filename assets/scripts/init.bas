@@ -6,13 +6,15 @@ blitbuf = sub_buffer(main_buffer, 10,10, 100, 100)
 ' Clear blit buffer to orange
 buffer_clear(blitbuf, ORANGE)
 
+scaled_brown = color_scale(BROWN, 20);
+
 ' Draw a cross hair
 for pix = 10 to 13
-    buffer_set_pixel(blitbuf, pix, pix, BROWN)
+    buffer_set_pixel(blitbuf, pix, pix, scaled_brown)
 next pix
 offset = 13
 for pix = 10 to 13
-    buffer_set_pixel(blitbuf, pix, offset, BROWN)
+    buffer_set_pixel(blitbuf, pix, offset, scaled_brown)
     offset = offset - 1
 next pix
 
