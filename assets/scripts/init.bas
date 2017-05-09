@@ -52,3 +52,9 @@ buffer_destroy(image)
 
 ' Destroy blit buffer
 buffer_destroy(blitbuf)
+
+while graphics_running()
+    graphics_poll_events()
+    graphics_render(main_buffer)
+    graphics_present()
+wend

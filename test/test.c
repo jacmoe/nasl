@@ -79,20 +79,8 @@ int main()
     nasl_buffer_blit(buffer, image_buffer, 100, 120);
     nasl_buffer_destroy(image_buffer);
 
-    // Run a script
+    // Run script for the main loop
     nasl_script_run("assets/scripts/init.bas");
-
-
-    // Main loop
-    while(nasl_graphics_running())
-    {
-        // Event polling
-        nasl_graphics_poll_events();
-        // Render the main buffer
-        nasl_graphics_render(buffer);
-        // Swap buffers
-        nasl_graphics_present();
-    }
 
     // Destroy the buffers we created
     nasl_buffer_destroy(sub_buffer);
