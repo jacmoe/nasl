@@ -32,7 +32,7 @@ int main()
     init();
 
     int buffer_width = 320;
-    int buffer_height = 200;
+    int buffer_height = 240;
 
     SpriteSheet ascii = nasl_sprite_load("assets/fonts/ascii.png", 16, 16);
 
@@ -101,7 +101,7 @@ static int init()
     nasl_color_script_init();
     nasl_sprite_script_init();
 
-    nasl_graphics_init(320, 200, "nasl test", 0, 3);
+    nasl_graphics_init(320, 240, "nasl test", 0, 3);
 
     glfwSetKeyCallback(nasl_graphics_get_window(), key_callback);
 

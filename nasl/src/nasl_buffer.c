@@ -84,7 +84,7 @@ void nasl_buffer_blit(Buffer *dest, Buffer *src, int x, int y)
         for (int i = 0; i < src->width; i++)
         {
             uint32_t src_pixel = nasl_buffer_get_pixel(src, i, j);
-            if (src_pixel != TRANSPARENT)
+            if (src_pixel != 65535) // same as TRANSPARENT
             {
                 nasl_buffer_set_pixel(dest, i + x, j + y, src_pixel);
             }

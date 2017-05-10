@@ -31,9 +31,6 @@ for pix = 10 to 13
     offset = offset - 1
 next pix
 
-' Print a color from a pixel
-print "Pixel : ", buffer_get_pixel(blitbuf, 10, 10), "!";
-
 ' Draw some lines
 draw_line(blitbuf, 1, 5, 9, 1, RED)
 draw_line(blitbuf, 9, 1, 1, 20, RED)
@@ -44,7 +41,10 @@ draw_line(blitbuf, 20, 15, 20, 25, VIOLET)
 buffer_blit(main_buffer, blitbuf, 50, 10)
 
 ' Load an image
-image = image_load("assets/textures/ceil.png")
+image = image_load("assets/textures/sprite.png")
+' Print a color from a pixel
+print "Pixel : ", buffer_get_pixel(image, 1, 1), "!";
+
 ' Blit the image to main buffer
 buffer_blit(main_buffer, image, 220, 50)
 ' Destroy image buffer
