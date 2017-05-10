@@ -4,7 +4,7 @@ import os
 
 class NaslConan(ConanFile):
     name = "nasl"
-    version = "0.3"
+    version = "0.4"
     license = "BSD 2-Clause License"
     url = "https://github.com/jacmoe/nasl"
     settings = "os", "compiler", "build_type", "arch"

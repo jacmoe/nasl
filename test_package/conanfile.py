@@ -8,7 +8,7 @@ username = os.getenv("CONAN_USERNAME", "jacmoe")
 
 class NaslTestConan(ConanFile):
     settings = "os", "compiler", "build_type", "arch"
-    requires = "nasl/0.3@%s/%s" % (username, channel)
+    requires = "nasl/0.4@%s/%s" % (username, channel)
     generators = "cmake"
 
     def build(self):
