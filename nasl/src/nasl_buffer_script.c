@@ -80,9 +80,9 @@ static int _get_main_buffer(struct mb_interpreter_t* s, void** l)
 
 	mb_assert(s && l);
 
-	mb_check(mb_attempt_func_begin(s, l));
+	mb_check(mb_attempt_open_bracket(s, l));
 
-	mb_check(mb_attempt_func_end(s, l));
+	mb_check(mb_attempt_close_bracket(s, l));
 
 	buf = nasl_buffer_get_mainbuffer();
 	if(!buf) {
