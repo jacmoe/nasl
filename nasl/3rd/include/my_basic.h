@@ -514,7 +514,11 @@ typedef enum mb_meta_status_u {
 	MB_MS_RETURNED = 1 << 1
 } mb_meta_status_u;
 
-typedef unsigned char mb_val_bytes_t[mb_max(mb_max(sizeof(void*), sizeof(unsigned long)), mb_max(sizeof(int_t), sizeof(real_t)))];
+//CHANGE_BEGIN
+//typedef unsigned char mb_val_bytes_t[mb_max(mb_max(sizeof(void*), sizeof(unsigned long)), mb_max(sizeof(int_t), sizeof(real_t)))];
+// redefine mb_val_bytes_t so that we can pass structs around
+typedef unsigned char mb_val_bytes_t[64];
+//CHANGE_END
 
 typedef union mb_value_u {
 	int_t integer;

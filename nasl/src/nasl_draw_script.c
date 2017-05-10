@@ -13,14 +13,15 @@
 */
 #include "nasl_draw.h"
 #include "nasl_script.h"
+#include <string.h> // memcpy
 
 static int _draw_line(struct mb_interpreter_t* s, void** l);
-//static int _draw_text(struct mb_interpreter_t* s, void** l);
+static int _draw_text(struct mb_interpreter_t* s, void** l);
 
 void nasl_draw_script_init()
 {
     mb_register_func(nasl_script_get_interpreter(), "DRAW_LINE", _draw_line);
-    //mb_register_func(nasl_script_get_interpreter(), "DRAW_TEXT", _draw_text);
+    mb_register_func(nasl_script_get_interpreter(), "DRAW_TEXT", _draw_text);
 }
 
 static int _draw_line(struct mb_interpreter_t* s, void** l)
@@ -56,16 +57,15 @@ static int _draw_line(struct mb_interpreter_t* s, void** l)
 	return result;
 }
 
-/*
 static int _draw_text(struct mb_interpreter_t* s, void** l)
 {
 	//TODO: this could accept variable number of arguments
     // but currently only accepts one
     int result = MB_FUNC_OK;
 	Buffer* buf = 0;
-    //SpriteSheet ascii;
-    void* up1 = 0;
-	SpriteSheet up2;
+    SpriteSheet ascii;
+    void* up = 0;
+	mb_value_t val;
     char* str = 0;
     int x = 0;
     int y = 0;
@@ -74,20 +74,21 @@ static int _draw_text(struct mb_interpreter_t* s, void** l)
 
 	mb_check(mb_attempt_open_bracket(s, l));
 
-	mb_check(mb_pop_usertype(s, l, &up1));
-	mb_check(mb_pop_usertype(s, l, up2));
+	mb_check(mb_pop_usertype(s, l, &up));
+    mb_make_nil(val);
+    mb_check(mb_pop_value(s, l, &val));
     mb_check(mb_pop_int(s, l,  &x));
     mb_check(mb_pop_int(s, l,  &y));
     mb_check(mb_pop_string(s, l, &str));
 
 	mb_check(mb_attempt_close_bracket(s, l));
 
-	if(!up1)
+	if(!up)
 		return MB_FUNC_ERR;
 
-	buf = (Buffer*)up1;
-    nasl_draw_text(buf, up2, x, y, str);
+	buf = (Buffer*)up;
+    memcpy(&ascii, &val.value.bytes, sizeof(SpriteSheet));
+    nasl_draw_text(buf, ascii, x, y, str);
 
 	return result;
 }
-//*/
