@@ -61,6 +61,38 @@ void nasl_draw_line(Buffer *b, int x0, int y0, int x1, int y1, uint32_t color)
     }
 }
 
+void nasl_draw_rect(Buffer* b, int left, int top, int right, int bottom, uint32_t color)
+{
+	uint32_t top_offset, bottom_offset, i, temp;
+
+	if(top > bottom)
+	{
+		temp = top;
+		top = bottom;
+		bottom = temp;
+	}
+	if(left > right)
+	{
+		temp = left;
+		left = right;
+		right = temp;
+	}
+
+	top_offset = (top << 8) + (top << 6);
+	bottom_offset = (bottom << 8) + (bottom << 6);
+
+	for(i = left; i <= right; i++)
+	{
+		b->pixels[top_offset + i] = color;
+		b->pixels[bottom_offset + i] = color;
+	}
+	for(i = top_offset; i <= bottom_offset; i += b->width)
+	{
+		b->pixels[left + i] = color;
+		b->pixels[right + i] = color;
+	}
+}
+
 void nasl_draw_text(Buffer *b, SpriteSheet ascii, int x, int y, const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
