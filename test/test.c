@@ -36,8 +36,6 @@ int main()
 
     SpriteSheet ascii = nasl_sprite_load("assets/fonts/ascii.png", 16, 16);
 
-    printf("ascii is %zu bytes\n", sizeof(ascii));
-
     // Create main buffer
     Buffer* buffer = nasl_buffer_create(buffer_width, buffer_height);
     // Clear main buffer to a blue color
@@ -101,6 +99,7 @@ static int init()
     nasl_draw_script_init();
     nasl_image_script_init();
     nasl_color_script_init();
+    nasl_sprite_script_init();
 
     nasl_graphics_init(320, 200, "nasl test", 0, 3);
 

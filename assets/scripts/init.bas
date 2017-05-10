@@ -53,6 +53,11 @@ buffer_destroy(image)
 ' Destroy blit buffer
 buffer_destroy(blitbuf)
 
+' Create ascii sprite
+ascii = sprite_load("assets/fonts/ascii.png", 16, 16)
+' Print some text
+draw_text(main_buffer, ascii, 120, 90, "BASIC!!")
+
 while graphics_running()
     graphics_poll_events()
     graphics_render(main_buffer)
