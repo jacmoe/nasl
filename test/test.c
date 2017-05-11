@@ -42,48 +42,14 @@ int main()
     nasl_buffer_clear(buffer, BLUE);
     nasl_buffer_set_mainbuffer(buffer);
 
-    int pal_offset = (buffer_width / 5) / 2;
-    int pal_width = (buffer_width - (pal_offset * 2)) / 4;
-    int pal_height = (buffer_height - (pal_offset * 2)) / 4;
-
-    // Create a sub_buffer
-    Buffer* sub_buffer = nasl_buffer_create(pal_width,pal_height);
-
-    // Draw a palette by blitting 16 different sub_buffers into the main buffer
-    int col = 0;
-    int row = pal_offset;
-    for(int buf = 0; buf < 16; buf++)
-    {
-        nasl_buffer_clear(sub_buffer, c64_palette[buf]);
-        nasl_buffer_blit(buffer, sub_buffer, pal_offset + (pal_width * col), row);
-        col++;
-        if(col % 4 == 0)
-        {
-            col = 0;
-            row += pal_height;
-        }
-    }
-
-    // Draw a test line ..
-    nasl_draw_line(buffer, 50, 50, 200, 40, RED);
-
-    // Draw some text ..
-    nasl_draw_text(buffer, ascii, 100, 70, "Hello World!!");
-
-    // load an image ..
-    Buffer* image_buffer = nasl_image_load("assets/textures/ceil.png");
-    nasl_buffer_blit(buffer, image_buffer, 10, 40);
-    image_buffer = nasl_image_load("assets/textures/floor.png");
-    nasl_buffer_blit(buffer, image_buffer, 50, 80);
-    image_buffer = nasl_image_load("assets/textures/wall.png");
-    nasl_buffer_blit(buffer, image_buffer, 100, 120);
+    Buffer* image_buffer = nasl_image_load("assets/textures/background.png");
+    nasl_buffer_blit(buffer, image_buffer, 0, 0);
     nasl_buffer_destroy(image_buffer);
 
     // Run script for the main loop
     nasl_script_run("assets/scripts/init.bas");
 
     // Destroy the buffers we created
-    nasl_buffer_destroy(sub_buffer);
     nasl_buffer_destroy(buffer);
 
     shutdown();
