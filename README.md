@@ -28,6 +28,15 @@ Nasl is Not A Sixteen-bit Library
 * [Nuklear][nuklear]
 * [stb_image][stbimage]
 
+## Based on
+
+* [Herrecito's 2.5D Raycaster engine][engine]
+
+## Using code from
+
+* [David Brakeen - 256-Color VGA Programming in C][brakeen]
+
+
 ## How to build
 
     mkdir build
@@ -48,3 +57,5 @@ Nasl is Not A Sixteen-bit Library
 [glfw]: http://www.glfw.org/ "GLFW"
 [palette]: https://github.com/jacmoe/nasl/raw/master/palette.jpg "Commodore 64 Palette"
 [misc]: https://github.com/jacmoe/nasl/raw/master/misc.jpg "Misc Tests"
+[engine]: https://github.com/herrecito/engine "Herrecito's 2.5D Raycaster engine"
+[brakeen]: http://www.brackeen.com/vga/index.html "David Brakeen - 256-Color VGA Programming in C"
