@@ -61,6 +61,27 @@ void nasl_draw_line(Buffer *b, int x0, int y0, int x1, int y1, uint32_t color)
     }
 }
 
+//Fast vertical line from (x,y1) to (x,y2), with rgb color
+void nasl_draw_vertical_line(Buffer* buffer, int x, int y1, int y2, uint32_t color)
+{
+	if(y2 < y1)
+	{ // swap y1 and y2
+		y1 += y2;
+		y2 = y1 - y2;
+		y1 -= y2;
+	}
+	if(y2 < 0 || y1 >= buffer->height || x < 0 || x >= buffer->width)
+	{ // no single point of the line is on the screen
+		return;
+	}
+	if(y1 < 0) y1 = 0; // clip
+	if(y2 >= buffer->width) y2 = buffer->height - 1; // clip
+	for(int y = y1; y <= y2; y++)
+	{
+		nasl_buffer_set_pixel(buffer, x, y, color);
+	}
+}
+
 void nasl_draw_rect(Buffer* b, int left, int top, int right, int bottom, uint32_t color)
 {
 	uint32_t top_offset, bottom_offset, i, temp;

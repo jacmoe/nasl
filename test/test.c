@@ -34,17 +34,11 @@ int main()
     int buffer_width = 320;
     int buffer_height = 240;
 
-    SpriteSheet ascii = nasl_sprite_load("assets/fonts/ascii.png", 16, 16);
-
     // Create main buffer
     Buffer* buffer = nasl_buffer_create(buffer_width, buffer_height);
     // Clear main buffer to a blue color
     nasl_buffer_clear(buffer, BLUE);
     nasl_buffer_set_mainbuffer(buffer);
-
-    Buffer* image_buffer = nasl_image_load("assets/textures/background.png");
-    nasl_buffer_blit(buffer, image_buffer, 0, 0);
-    nasl_buffer_destroy(image_buffer);
 
     // Run script for the main loop
     nasl_script_run("assets/scripts/init.bas");
