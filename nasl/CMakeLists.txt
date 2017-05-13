@@ -20,6 +20,7 @@ set(TARGET_NAME nasl)
 
 set(Headers
     include/nasl_defs.h
+    include/nasl_dbg.h
     include/nasl_script.h
     include/nasl_graphics.h
     include/nasl_color.h
@@ -48,7 +49,6 @@ set(Sources
 )
 
 set(3rdParty_Headers
-    3rd/include/dbg.h
     3rd/include/my_basic.h
     3rd/include/nuklear.h
     3rd/include/nuklear_glfw_gl3.h

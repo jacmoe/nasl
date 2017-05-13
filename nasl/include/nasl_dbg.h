@@ -1,5 +1,18 @@
-#ifndef __dbg_h__
-#define __dbg_h__
+/*
+*   This file is part of the
+* ███╗   ██╗ █████╗ ███████╗██╗     
+* ████╗  ██║██╔══██╗██╔════╝██║     
+* ██╔██╗ ██║███████║███████╗██║     
+* ██║╚██╗██║██╔══██║╚════██║██║     
+* ██║ ╚████║██║  ██║███████║███████╗
+* ╚═╝  ╚═══╝╚═╝  ╚═╝╚══════╝╚══════╝
+*   project : https://github.com/jacmoe/nasl
+*
+*   Copyright 2017 Jacob Moen
+*
+*/
+#ifndef NASLDBG_H
+#define NASLDBG_H
 
 #include <stdio.h>
 #include <errno.h>
@@ -43,4 +56,4 @@
         errno=0;\
     }
 
-#endif
+#endif // NASLDBG_H
