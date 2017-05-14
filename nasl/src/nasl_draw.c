@@ -126,8 +126,8 @@ void nasl_draw_text(Buffer *b, SpriteSheet ascii, int x, int y, const char *fmt,
     for (int i = 0; i < strlen(text); i++) {
         unsigned char c = text[i];
 
-        int xx = c % 16;
-        int yy = c / 16;
+        int xx = c / 16;
+        int yy = c % 16;
 
         Buffer *bitmap = nasl_sprite_get(ascii, xx, yy);
 

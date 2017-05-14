@@ -45,9 +45,9 @@ SpriteSheet nasl_sprite_load(const char *path, int rows, int cols) {
 }
 
 
-Buffer* nasl_sprite_get(SpriteSheet ss, int x, int y)
+Buffer* nasl_sprite_get(SpriteSheet ss, int row, int column)
 {
-    return ss.sprites[y * ss.cols + x];
+    return ss.sprites[row * ss.cols + column];
 }
 
 

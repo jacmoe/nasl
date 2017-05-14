@@ -27,7 +27,7 @@ typedef struct SpriteSheet {
 
 
 SpriteSheet nasl_sprite_load(const char *path, int rows, int cols);
-Buffer* nasl_sprite_get(SpriteSheet ss, int x, int y);
+Buffer* nasl_sprite_get(SpriteSheet ss, int row, int column);
 void nasl_sprite_script_init();
 void nasl_sprite_delete(SpriteSheet ss);
 
