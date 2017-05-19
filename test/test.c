@@ -22,9 +22,12 @@
 #include "nasl_sprite.h"
 #include "nasl_image.h"
 
+#include <SDL.h>
+#include <SDL_image.h>
+
 static int init();
 static int shutdown();
-static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
+static void key_callback(SDL_Window* window, int key, int scancode, int action, int mods);
 
 int main()
 {
@@ -63,15 +66,15 @@ static int init()
 
     nasl_graphics_init(320, 240, "nasl test", 0, 3);
 
-    glfwSetKeyCallback(nasl_graphics_get_window(), key_callback);
+    //glfwSetKeyCallback(nasl_graphics_get_window(), key_callback);
 
     return 1;
 }
 
-static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+static void key_callback(SDL_Window *window, int key, int scancode, int action, int mods)
 {
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, GLFW_TRUE);
+//    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+//        glfwSetWindowShouldClose(window, GLFW_TRUE);
 }
 
 static int shutdown()

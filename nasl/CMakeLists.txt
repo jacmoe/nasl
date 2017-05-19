@@ -62,6 +62,8 @@ set(3rdParty_Source
 include_directories(
     include
     3rd/include
+    ${SDL2_INCLUDE_DIRS}
+    ${SDL2IMAGE_INCLUDE_DIRS}
 )
 
 add_library(${TARGET_NAME} STATIC

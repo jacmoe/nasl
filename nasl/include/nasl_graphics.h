@@ -14,8 +14,10 @@
 #ifndef NASLGRAPHICS_H
 #define NASLGRAPHICS_H
 
+#define GLEW_STATIC
 #include <GL/glew.h>
-#include <GLFW/glfw3.h>
+
+#include <SDL.h>
 
 #include "nasl_buffer.h"
 
@@ -31,6 +33,6 @@ uint32_t nasl_graphics_render(Buffer *buf);
 
 void nasl_graphics_present();
 
-GLFWwindow* nasl_graphics_get_window();
+SDL_Window* nasl_graphics_get_window();
 
 #endif /* NASLGRAPHICS_H */

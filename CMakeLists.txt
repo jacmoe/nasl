@@ -16,5 +16,9 @@ project(nasl)
 
 include(CMakeToolsHelpers OPTIONAL)
 
+find_package(PkgConfig REQUIRED)
+pkg_search_module(SDL2 REQUIRED sdl2)
+pkg_search_module(SDL2IMAGE REQUIRED SDL2_image)
+
 add_subdirectory(nasl)
 add_subdirectory(test)
