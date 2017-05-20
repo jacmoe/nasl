@@ -38,7 +38,25 @@ Buffer* nasl_image_load(const char *path) {
         free(b->pixels);
         b->pixels = (uint32_t *)data;
     } else {
-        fprintf(stderr, "S_LoadImage(): Error loading: %s\n", path);
+        fprintf(stderr, "nasl_image_load(): Error loading: %s\n", path);
+    }
+
+    return b;
+}
+
+Buffer* nasl_image_load_from_memory(const unsigned char* memory, int width, int height)
+{
+    int n = 0;
+    unsigned char *data = stbi_load_from_memory(memory, sizeof(uint32_t), &width, &height, &n, 4);
+
+    Buffer *b = nasl_buffer_create(width, height);
+
+    if (data != NULL) {
+        // TODO create function to not have to free pixels
+        free(b->pixels);
+        b->pixels = (uint32_t *)data;
+    } else {
+        fprintf(stderr, "nasl_image_load_from_memory(): Error loading image from memory!\n");
     }
 
     return b;

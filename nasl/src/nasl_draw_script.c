@@ -63,22 +63,20 @@ static int _draw_text(struct mb_interpreter_t* s, void** l)
     // but currently only accepts one
     int result = MB_FUNC_OK;
 	Buffer* buf = 0;
-    SpriteSheet ascii;
     void* up = 0;
-	mb_value_t val;
     char* str = 0;
     int x = 0;
     int y = 0;
+    int color = 0;
 
 	mb_assert(s && l);
 
 	mb_check(mb_attempt_open_bracket(s, l));
 
 	mb_check(mb_pop_usertype(s, l, &up));
-    mb_make_nil(val);
-    mb_check(mb_pop_value(s, l, &val));
     mb_check(mb_pop_int(s, l,  &x));
     mb_check(mb_pop_int(s, l,  &y));
+    mb_check(mb_pop_int(s, l,  &color));
     mb_check(mb_pop_string(s, l, &str));
 
 	mb_check(mb_attempt_close_bracket(s, l));
@@ -87,8 +85,7 @@ static int _draw_text(struct mb_interpreter_t* s, void** l)
 		return MB_FUNC_ERR;
 
 	buf = (Buffer*)up;
-    memcpy(&ascii, &val.value.bytes, sizeof(SpriteSheet));
-    nasl_draw_text(buf, ascii, x, y, str);
+    nasl_draw_text(buf, x, y, color, str);
 
 	return result;
 }

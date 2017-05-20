@@ -17,7 +17,7 @@
 #ifndef NASLBUFFER_H
 #define NASLBUFFER_H
 
-//#include "dbg.h"
+#include "nasl_dbg.h"
 #include "nasl_color.h"
 
 typedef struct Buffer
@@ -54,7 +54,7 @@ static inline void nasl_buffer_set_pixel(Buffer* b, int x, int y, uint32_t color
 #ifndef NDEBUG
     if (!(x >= 0 && x < b->width && y >= 0 && y < b->height))
     {
-        //debug("Drawing outside the buffer! (%d, %d)", x, y);
+        debug("Drawing outside the buffer! (%d, %d)", x, y);
     }
 #endif
 

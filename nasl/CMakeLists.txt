@@ -50,9 +50,9 @@ set(Sources
 
 set(3rdParty_Headers
     3rd/include/my_basic.h
-    3rd/include/nuklear.h
-    3rd/include/nuklear_glfw_gl3.h
+    3rd/include/stb_image_write.h
     3rd/include/stb_image.h
+    3rd/include/sysfont.h
 )
 
 set(3rdParty_Source
