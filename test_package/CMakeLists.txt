@@ -18,7 +18,8 @@ include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup()
 
 find_package(PkgConfig REQUIRED)
-pkg_search_module(GLFW REQUIRED glfw3)
+pkg_search_module(SDL2 REQUIRED sdl2)
+pkg_search_module(SDL2IMAGE REQUIRED SDL2_image)
 
 find_package(OpenGL REQUIRED)
 
@@ -30,7 +31,8 @@ endif()
 include_directories(
     ${CONAN_INCLUDE_DIRS_NASL}/include
     ${CONAN_INCLUDE_DIRS_NASL}/3rd/include
-    ${GLFW_INCLUDE_DIRS}
+    ${SDL2_INCLUDE_DIRS}
+    ${SDL2IMAGE_INCLUDE_DIRS}
     ${OPENGL_INCLUDE_DIRS}
     ${GLEW_INCLUDE_DIRS}
 )
@@ -38,7 +40,9 @@ include_directories(
 add_executable(example main.c)
 target_link_libraries(example
     ${CONAN_LIBS}
-    ${GLFW_STATIC_LIBRARIES}
+    m
+    ${SDL2_LIBRARIES}
+    ${SDL2IMAGE_LIBRARIES}
     ${OPENGL_LIBRARIES}
     ${GLEW_LIBRARIES}
 )

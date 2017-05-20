@@ -85,7 +85,7 @@ static int _draw_text(struct mb_interpreter_t* s, void** l)
 		return MB_FUNC_ERR;
 
 	buf = (Buffer*)up;
-    nasl_draw_text(buf, x, y, color, str);
+    nasl_draw_text(buf, x, y, color, FONT_SMALL, str);
 
 	return result;
 }
