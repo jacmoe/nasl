@@ -1,6 +1,7 @@
 /build
 test_package/build
 /.vscode
+*.user
 
 # Object files
 *.o
