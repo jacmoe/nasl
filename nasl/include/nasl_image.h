@@ -17,6 +17,7 @@
 #include "nasl_buffer.h"
 
 Buffer* nasl_image_load(const char *path);
+Buffer* nasl_image_load_from_memory(const unsigned char* memory, int width, int height);
 void nasl_image_script_init();
 
 #endif // NASLIMAGELOAD_H

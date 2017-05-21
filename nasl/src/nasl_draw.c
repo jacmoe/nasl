@@ -12,6 +12,8 @@
 *
 */
 #include "nasl_draw.h"
+#define SYSFONT_IMPLEMENTATION
+#include "sysfont.h"
 #include <stdlib.h> // for abs
 #include <stdarg.h> // for va_start, etc.
 #include <string.h> // for strlen
@@ -114,7 +116,8 @@ void nasl_draw_rect(Buffer* b, int left, int top, int right, int bottom, uint32_
 	}
 }
 
-void nasl_draw_text(Buffer *b, SpriteSheet ascii, int x, int y, const char *fmt, ...) {
+void nasl_draw_text(Buffer* buffer, int x, int y, uint32_t color, int font_size, const char* fmt, ...)
+{
     va_list args;
     va_start(args, fmt);
 
@@ -123,25 +126,23 @@ void nasl_draw_text(Buffer *b, SpriteSheet ascii, int x, int y, const char *fmt,
 
     va_end(args);
 
-    for (int i = 0; i < strlen(text); i++) {
-        unsigned char c = text[i];
+    Buffer* tex_buf = nasl_buffer_create(buffer->width, buffer->height);
+    nasl_buffer_clear(tex_buf, TRANSPARENT);
+    if(font_size == FONT_NORMAL)
+    {
+        sysfont_9x16_u32(tex_buf->pixels, buffer->width, buffer->height, 0, 0, text, color);
+    } else {
+        sysfont_8x8_u32(tex_buf->pixels, buffer->width, buffer->height, 0, 0, text, color);
+    }
 
-        int xx = c / 16;
-        int yy = c % 16;
-
-        Buffer *bitmap = nasl_sprite_get(ascii, xx, yy);
-
-
-        int bx = x + i * 8;
-        for (int bj = 0; bj < bitmap->height; bj++)
+    for (int j = 0; j < tex_buf->height; j++)
+    {
+        for (int i = 0; i < tex_buf->width; i++)
         {
-            for (int bi = 0; bi < bitmap->width; bi++)
+            uint32_t src_pixel = nasl_buffer_get_pixel(tex_buf, i, j);
+            if (src_pixel != TRANSPARENT)
             {
-                uint32_t src_pixel = nasl_buffer_get_pixel(bitmap, bi, bj);
-                if (src_pixel != 0xff000000)
-                {
-                    nasl_buffer_set_pixel(b, bi + bx, bj + y, src_pixel);
-                }
+                nasl_buffer_set_pixel(buffer, i + x, j + y, src_pixel);
             }
         }
     }

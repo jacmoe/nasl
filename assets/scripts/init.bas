@@ -47,12 +47,9 @@ buffer_blit(main_buffer(), image, 220, 50)
 ' Destroy image buffer
 buffer_destroy(image)
 
-' Create ascii sprite
-ascii = sprite_load("assets/fonts/ascii.png", 16, 16)
 ' Print some text
-draw_text(main_buffer(), ascii, 120, 90, "BASIC!!")
-' Delete ascii sprite
-sprite_delete(ascii)
+draw_text(main_buffer(), 20, 220, WHITE, 1, "Hi from BASIC!")
+
 
 while graphics_running()
     graphics_poll_events()

@@ -40,6 +40,9 @@ int main()
     nasl_buffer_clear(buffer, BLUE);
     nasl_buffer_set_mainbuffer(buffer);
 
+    // Draw some fancy text
+    nasl_draw_text(buffer, 20, 200, WHITE, FONT_SMALL, "Some grand text!");
+
     // Run script for the main loop
     nasl_script_run("assets/scripts/init.bas");
 
