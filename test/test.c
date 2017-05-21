@@ -25,8 +25,9 @@
 #include <SDL.h>
 #include <SDL_image.h>
 
-static void init();
-static void shutdown();
+static int init();
+static int shutdown();
+static void key_callback(SDL_Window* window, int key, int scancode, int action, int mods);
 
 int main()
 {
@@ -39,23 +40,11 @@ int main()
     // Create main buffer
     Buffer* buffer = nasl_buffer_create(buffer_width, buffer_height);
     // Clear main buffer to a blue color
-    nasl_buffer_clear(buffer, GREY1);
-    nasl_draw_text(buffer, 20, 220, WHITE, "This is a font that is rendered!!");
+    nasl_buffer_clear(buffer, BLUE);
     nasl_buffer_set_mainbuffer(buffer);
 
-    int running = 1;
-
-    while(running)
-    {
-        SDL_Event event;
-        while(SDL_PollEvent(&event))
-        {
-            nasl_graphics_render(buffer);
-            nasl_graphics_present();
-            if(event.type == SDL_QUIT)
-                running = 0;
-        }
-    }
+    // Run script for the main loop
+    nasl_script_run("assets/scripts/init.bas");
 
     // Destroy the buffers we created
     nasl_buffer_destroy(buffer);
@@ -63,7 +52,7 @@ int main()
     shutdown();
 }
 
-static void init()
+static int init()
 {
     nasl_script_init();
     nasl_script_set_import_dirs("assets/scripts");
@@ -75,11 +64,23 @@ static void init()
     nasl_color_script_init();
     nasl_sprite_script_init();
 
-    nasl_graphics_init(320, 240, "nasl test", 0, 2);
+    nasl_graphics_init(320, 240, "nasl test", 0, 3);
+
+    //glfwSetKeyCallback(nasl_graphics_get_window(), key_callback);
+
+    return 1;
 }
 
-static void shutdown()
+static void key_callback(SDL_Window *window, int key, int scancode, int action, int mods)
+{
+//    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+//        glfwSetWindowShouldClose(window, GLFW_TRUE);
+}
+
+static int shutdown()
 {
     nasl_graphics_shutdown();
     nasl_script_shutdown();
+
+    return 1;
 }
