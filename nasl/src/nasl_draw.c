@@ -117,7 +117,7 @@ void nasl_draw_rect(Buffer* b, int left, int top, int right, int bottom, uint32_
 	}
 }
 
-void nasl_draw_text(Buffer* buffer, int x, int y, uint32_t color, int font_size, const char* fmt, ...)
+void nasl_draw_text(Buffer* buffer, int x, int y, uint32_t color, const char* fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
@@ -129,12 +129,7 @@ void nasl_draw_text(Buffer* buffer, int x, int y, uint32_t color, int font_size,
 
     Buffer* tex_buf = nasl_buffer_create(buffer->width, buffer->height);
     nasl_buffer_clear(tex_buf, TRANSPARENT);
-    if(font_size == FONT_SMALL)
-    {
-        sysfont_8x8_u32(tex_buf->pixels, buffer->width, buffer->height, 0, 0, text, color);
-    } else {
-        sysfont_9x16_u32(tex_buf->pixels, buffer->width, buffer->height, 0, 0, text, color);
-    }
+    sysfont_8x8_u32(tex_buf->pixels, buffer->width, buffer->height, 0, 0, text, color);
 
     for (int j = 0; j < tex_buf->height; j++)
     {
@@ -147,5 +142,4 @@ void nasl_draw_text(Buffer* buffer, int x, int y, uint32_t color, int font_size,
             }
         }
     }
-    nasl_buffer_destroy(tex_buf);
 }

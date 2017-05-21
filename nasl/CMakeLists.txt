@@ -18,10 +18,6 @@ project(nasl_lib)
 
 set(TARGET_NAME nasl)
 
-find_package(PkgConfig REQUIRED)
-pkg_search_module(SDL2 REQUIRED sdl2)
-pkg_search_module(SDL2IMAGE REQUIRED SDL2_image)
-
 set(Headers
     include/nasl_defs.h
     include/nasl_dbg.h

@@ -18,9 +18,6 @@
 
 static SDL_Window* window = NULL;
 static SDL_GLContext glcontext;
-static GLuint shaderProgram;
-
-static int gl_running = 0;
 
 // Flags
 static int resizef;
@@ -161,7 +158,7 @@ int nasl_graphics_init(int width, int height, const char* title, int fullscreen,
     glShaderSource(fragmentShader, 1, &fragmentSource, NULL);
     glCompileShader(fragmentShader);
 
-    shaderProgram = glCreateProgram();
+    GLuint shaderProgram = glCreateProgram();
     glAttachShader(shaderProgram, vertexShader);
     glAttachShader(shaderProgram, fragmentShader);
     glLinkProgram(shaderProgram);
@@ -185,15 +182,12 @@ int nasl_graphics_init(int width, int height, const char* title, int fullscreen,
     glClearColor(0, 0, 0, 1);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    gl_running = 1;
-
     return 0;
 }
 
 int nasl_graphics_shutdown()
 {
     SDL_GL_DeleteContext(glcontext);
-    glDeleteProgram(shaderProgram);
     IMG_Quit();
     SDL_Quit();
     return 0;
@@ -201,7 +195,7 @@ int nasl_graphics_shutdown()
 
 int nasl_graphics_running()
 {
-    return gl_running;
+    return 1;//!glfwWindowShouldClose(window);
 }
 
 static uint32_t get_time()
