@@ -15,7 +15,8 @@
 # Dependencies
 # ------------
 
-include(CMakeToolsHelpers OPTIONAL)
+find_package(PkgConfig REQUIRED)
+pkg_search_module(GLFW REQUIRED glfw3)
 
 find_package(OpenGL REQUIRED)
 
@@ -24,29 +25,28 @@ if(${GLEW_FOUND})
   add_definitions(-DUSE_GLEW)
 endif()
 
-set(TARGET_NAME nasl_test)
 
-add_executable(${TARGET_NAME}
-    test.c
-)
+
+set(TARGET_NAME nasl_test)
 
 include_directories(
     ../nasl/include
     ../nasl/3rd/include
-    ${SDL2_INCLUDE_DIRS}
-    ${SDL2IMAGE_INCLUDE_DIRS}
+    ${GLFW_INCLUDE_DIRS}
     ${OPENGL_INCLUDE_DIRS}
     ${GLEW_INCLUDE_DIRS}
- )
+)
+
+add_executable(${TARGET_NAME}
+    test.c
+)
 
 set_property(TARGET ${TARGET_NAME} PROPERTY C_STANDARD 99) # 90 99 11
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -pedantic -Wextra")
 
 target_link_libraries(${TARGET_NAME}
     nasl
-    m
-    ${SDL2_LIBRARIES}
-    ${SDL2IMAGE_LIBRARIES}
+    ${GLFW_STATIC_LIBRARIES}
     ${OPENGL_LIBRARIES}
     ${GLEW_LIBRARIES}
 )

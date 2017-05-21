@@ -151,7 +151,7 @@ static int _graphics_present(struct mb_interpreter_t* s, void** l)
 static int _graphics_get_window(struct mb_interpreter_t* s, void** l)
 {
 	int result = MB_FUNC_OK;
-    SDL_Window* window = 0;
+	GLFWwindow* window = 0;
 
 	mb_assert(s && l);
 

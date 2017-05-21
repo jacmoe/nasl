@@ -14,27 +14,21 @@
 #include "nasl_graphics.h"
 #include <stdlib.h>
 #include <stdio.h>
-#include <SDL_image.h>
 
-static SDL_Window* window = NULL;
-static SDL_GLContext glcontext;
-
-// Flags
-static int resizef;
-
+static GLFWwindow *window = NULL;
 
 static void error_callback(int e, const char *d)
 {
     printf("Error %d: %s\n", e, d);
 }
 
-void framebuffer_size_callback(SDL_Window* window, int width, int height)
+void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
     glViewport(0, 0, width, height);
 }
 
 
-SDL_Window* nasl_graphics_get_window()
+GLFWwindow* nasl_graphics_get_window()
 {
     return window;
 }
@@ -147,42 +141,42 @@ static void InitOpenGL(int width, int height) {
     glBindTexture(GL_TEXTURE_2D, tex);
 }
 
-int HandleResize(void *userdata, SDL_Event *ev) {
-    if (ev->type == SDL_WINDOWEVENT) {
-        if (ev->window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
-            resizef = 1;
-        }
-    }
-
-    return 0;  // Ignored
-}
-
 int nasl_graphics_init(int width, int height, const char* title, int fullscreen, int scalefactor)
 {
-    SDL_Init(SDL_INIT_VIDEO);
-    IMG_Init(IMG_INIT_PNG);
+    glfwInit();
 
-    // Core-Profile OpenGL 3.3
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
-            SDL_GL_CONTEXT_PROFILE_CORE);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
 
-    // Create window and OpenGL Context
-    window = SDL_CreateWindow(
-            title,
-            SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-            width, height,
-            SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL
-            );
+    // Create window and OpenGL context
+    window = NULL;
+    if(fullscreen)
+    {
+        window = glfwCreateWindow(width, height, title, glfwGetPrimaryMonitor(), NULL);
+    } else {
+        window = glfwCreateWindow(width, height, title, NULL, NULL);
+    }
 
-    glcontext = SDL_GL_CreateContext(window);
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
-    // Handle resize events
-    SDL_AddEventWatch(HandleResize, NULL);
+    if(!fullscreen) glfwSetWindowSize(window, width * scalefactor, height * scalefactor);
+    
+    // Position window in the middle of the screen
+    const GLFWvidmode *mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+    int xpos = (mode->width / 2) - (width * scalefactor) / 2;
+    int ypos = (mode->height / 2) - (height * scalefactor) / 2;
+    glfwSetWindowPos(window, xpos, ypos);
 
-    // Disable vsync
-    SDL_GL_SetSwapInterval(0);
+    glfwMakeContextCurrent(window);
+
+    if(fullscreen)
+    {
+        glViewport(0, 0, mode->width, mode->height);
+    } else {
+        glViewport(0, 0, width, height);
+    }
 
     // Init GLEW
     glewExperimental = GL_TRUE;
