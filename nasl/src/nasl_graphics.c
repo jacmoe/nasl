@@ -180,7 +180,19 @@ int nasl_graphics_init(int width, int height, const char* title, int fullscreen,
 
     // Init GLEW
     glewExperimental = GL_TRUE;
+    printf("Status: Using GLEW %s\n", glewGetString(GLEW_VERSION));
     glewInit();
+
+    if (GLEW_VERSION_4_3)
+    {
+        printf("GLEW found OPENGL 4.3\n");
+    }
+
+	// get version info
+	printf ("Renderer: %s\n", glGetString (GL_RENDERER));
+	printf ("OpenGL %s, GLSL %s\n", glGetString(GL_VERSION),
+				 glGetString(GL_SHADING_LANGUAGE_VERSION));
+
     InitOpenGL(width, height);
    return 0;
 }
