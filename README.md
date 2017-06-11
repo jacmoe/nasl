@@ -13,6 +13,8 @@
     *
     */
 
+[![Build Status](https://travis-ci.org/jacmoe/nasl.svg)](https://travis-ci.org/jacmoe/nasl)
+
 # nasl
 Nasl is Not A Sixteen-bit Library
 
