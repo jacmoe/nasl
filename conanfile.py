@@ -33,3 +33,5 @@ conan_basic_setup()''')
 
     def package_info(self):
         self.cpp_info.libs = ["nasl"]
+        self.cpp_info.libs.append("GLEW")
+        self.cpp_info.libs.append("glfw")
