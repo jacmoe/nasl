@@ -25,4 +25,4 @@ conan remote list
 conan remote add jmc https://api.bintray.com/conan/jacmoe/Conan
 conan remote add dimi https://api.bintray.com/conan/dimi309/conan-packages
 conan remote list
-conan user -p BINTRAY_APIKEY -r jmc jacmoe
+conan user -p $BINTRAY_APIKEY -r jmc jacmoe
