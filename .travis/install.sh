@@ -21,4 +21,4 @@ fi
 
 pip install conan_package_tools # It install conan too
 conan remote add dimi https://api.bintray.com/conan/dimi309/conan-packages
-conan user
+conan user -p $BINTRAY_APIKEY -r dimi jacmoe
