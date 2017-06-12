@@ -8,6 +8,7 @@ env:
     - CONAN_UPLOAD=1
     - CONAN_REFERENCE="nasl/0.4"
     - CONAN_USERNAME="jacmoe"
+    - CONAN_REMOTE="dimi"
     - CONAN_CHANNEL="testing"
     - CONAN_TOTAL_PAGES=1
     - CONAN_CURRENT_PAGE=1
