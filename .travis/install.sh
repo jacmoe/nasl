@@ -20,5 +20,5 @@ if [[ "$(uname -s)" == 'Darwin' ]]; then
 fi
 
 pip install conan_package_tools # It install conan too
-conan user
 conan remote add dimi309-bintray https://api.bintray.com/conan/dimi309/conan-packages
+conan user
