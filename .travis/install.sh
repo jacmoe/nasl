@@ -21,5 +21,7 @@ fi
 
 pip install conan_package_tools # It install conan too
 pip install conan --upgrade
+conan remote list
 conan remote add dimi https://api.bintray.com/conan/dimi309/conan-packages
+conan remote list
 conan user
