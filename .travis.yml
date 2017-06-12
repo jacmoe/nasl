@@ -8,6 +8,7 @@ env:
     - CONAN_UPLOAD=1
     - CONAN_REFERENCE="nasl/0.4"
     - CONAN_USERNAME="jacmoe"
+    - CONAN_REMOTE="jmc"
     - CONAN_PASSWORD=BINTRAY_APIKEY
     - CONAN_CHANNEL="stable"
     - CONAN_TOTAL_PAGES=1
