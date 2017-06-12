@@ -7,8 +7,8 @@ env:
   global:
     - CONAN_UPLOAD=1
     - CONAN_REFERENCE="nasl/0.4"
-    - CONAN_USERNAME="dimi309"
-    - CONAN_REMOTE="conan-packages"
+    - CONAN_USERNAME="jacmoe"
+    - CONAN_REMOTE="dimi https://api.bintray.com/conan/dimi309/conan-packages"
     - CONAN_CHANNEL="stable"
     - CONAN_TOTAL_PAGES=1
     - CONAN_CURRENT_PAGE=1
