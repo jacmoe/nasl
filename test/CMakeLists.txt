@@ -15,26 +15,27 @@
 # Dependencies
 # ------------
 
-find_package(PkgConfig REQUIRED)
-pkg_search_module(GLFW REQUIRED glfw3)
+set(TARGET_NAME nasl_test)
 
-find_package(OpenGL REQUIRED)
-
-find_package(GLEW 1.10)
-if(${GLEW_FOUND})
-  add_definitions(-DUSE_GLEW)
+if(NOT EXISTS "${CMAKE_BINARY_DIR}/conan.cmake")
+   message(STATUS "Downloading conan.cmake from https://github.com/memsharded/cmake-conan")
+   file(DOWNLOAD "https://raw.githubusercontent.com/conan-io/cmake-conan/master/conan.cmake"
+                 "${CMAKE_BINARY_DIR}/conan.cmake")
 endif()
 
+include(${CMAKE_BINARY_DIR}/conan.cmake)
 
+conan_cmake_run(REQUIRES nasl/0.4@jacmoe/testing
+                BASIC_SETUP
+                BUILD missing)
 
-set(TARGET_NAME nasl_test)
+find_package(OpenGL REQUIRED)
 
 include_directories(
     ../nasl/include
     ../nasl/3rd/include
-    ${GLFW_INCLUDE_DIRS}
-    ${OPENGL_INCLUDE_DIRS}
-    ${GLEW_INCLUDE_DIRS}
+        ${OPENGL_INCLUDE_DIRS}
+        ${CONAN_INCLUDE_DIRS}
 )
 
 add_executable(${TARGET_NAME}
@@ -46,7 +47,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -pedantic -Wextra")
 
 target_link_libraries(${TARGET_NAME}
     nasl
-    ${GLFW_STATIC_LIBRARIES}
-    ${OPENGL_LIBRARIES}
-    ${GLEW_LIBRARIES}
+        m
+        ${OPENGL_LIBRARIES}
+    ${CONAN_LIBS}
 )

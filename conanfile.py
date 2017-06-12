@@ -7,7 +7,9 @@ class NaslConan(ConanFile):
     version = "0.4"
     license = "BSD 2-Clause License"
     url = "https://github.com/jacmoe/nasl"
+    description = "Nasl is Not A Sixteen-bit Library"
     settings = "os", "compiler", "build_type", "arch"
+    requires = "glfw/3.2.1@dimi309/stable", "glew/2.0.0@dimi309/stable"
     options = {"shared": [True, False]}
     default_options = "shared=False"
     generators = "cmake"
