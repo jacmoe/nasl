@@ -9,7 +9,6 @@ env:
     - CONAN_REFERENCE="nasl/0.4"
     - CONAN_USERNAME="jacmoe"
     - CONAN_PASSWORD=BINTRAY_APIKEY
-    - CONAN_REMOTE="dimi"
     - CONAN_CHANNEL="stable"
     - CONAN_TOTAL_PAGES=1
     - CONAN_CURRENT_PAGE=1
