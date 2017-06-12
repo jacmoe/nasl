@@ -22,6 +22,7 @@ fi
 pip install conan_package_tools # It install conan too
 pip install conan --upgrade
 conan remote list
+conan remote add jmc https://api.bintray.com/conan/jacmoe/Conan
 conan remote add dimi https://api.bintray.com/conan/dimi309/conan-packages
 conan remote list
-conan user -p BINTRAY_APIKEY -r dimi jacmoe
+conan user -p BINTRAY_APIKEY -r jmc jacmoe
