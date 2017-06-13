@@ -13,7 +13,7 @@
     *
     */
 
-[![Build Status](https://travis-ci.org/jacmoe/nasl.svg)](https://travis-ci.org/jacmoe/nasl)
+[![Build Status](https://travis-ci.org/jacmoe/nasl.svg?branch=master)](https://travis-ci.org/jacmoe/nasl)
 
 # nasl
 Nasl is Not A Sixteen-bit Library
