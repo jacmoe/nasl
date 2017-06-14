@@ -5,10 +5,10 @@ sudo: required
 language: python
 env:
   global:
-    - CONAN_UPLOAD="https://api.bintray.com/conan/jacmoe/Conan"
+    #- CONAN_UPLOAD="https://api.bintray.com/conan/jacmoe/Conan"
     - CONAN_REFERENCE="nasl/0.4"
     - CONAN_USERNAME="jacmoe"
-    - CONAN_REMOTE="dimi https://api.bintray.com/conan/dimi309/conan-packages"
+    - CONAN_REMOTES="dimi https://api.bintray.com/conan/dimi309/conan-packages"
     - CONAN_CHANNEL="stable"
 
 matrix:
