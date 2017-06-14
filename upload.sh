@@ -1,3 +1,3 @@
 #!/bin/bash
-conan upload nasl/0.4@jacmoe/testing -r jacmoe-bintray --all
+conan upload nasl/0.4@jacmoe/stable -r jacmoe-bintray --all
 
