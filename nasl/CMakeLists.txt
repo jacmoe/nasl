@@ -69,3 +69,5 @@ add_library(${TARGET_NAME} STATIC
     ${3rdParty_Headers}
     ${3rdParty_Source}
 )
+
+set_property(TARGET ${TARGET_NAME} PROPERTY C_STANDARD 99) # 90 99 11
