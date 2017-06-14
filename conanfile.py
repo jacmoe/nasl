@@ -1,4 +1,5 @@
 from conans import ConanFile, CMake, tools
+from conans.tools import os_info
 import os
 
 
@@ -35,3 +36,5 @@ conan_basic_setup()''')
 
     def package_info(self):
         self.cpp_info.libs = ["nasl"]
+        if os_info.is_linux:
+            self.cpp_info.libs.append("m")
