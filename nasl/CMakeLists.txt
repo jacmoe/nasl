@@ -8,7 +8,7 @@
 # ╚═╝  ╚═══╝╚═╝  ╚═╝╚══════╝╚══════╝
 #   project : https://github.com/jacmoe/nasl
 #
-#   Copyright 2017 Jacob Moen
+#   Copyright 2017 - 2020 Jacob Moen
 #
 #
 
