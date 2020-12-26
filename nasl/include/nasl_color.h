@@ -35,7 +35,7 @@ enum Color
     LIGHTGREEN = 0x66FFAA,
     LIGHTBLUE = 0xFF8800,
     GREY3 = 0xBBBBBB,
-    TRANSPARENT = 0xFFFF00,
+    TRANSP = 0xFFFF00,
 };
 
 extern uint32_t c64_palette[16];

@@ -127,7 +127,7 @@ void nasl_draw_text(Buffer* buffer, int x, int y, uint32_t color, int font_size,
     va_end(args);
 
     Buffer* tex_buf = nasl_buffer_create(buffer->width, buffer->height);
-    nasl_buffer_clear(tex_buf, TRANSPARENT);
+    nasl_buffer_clear(tex_buf, TRANSP);
     if(font_size == FONT_NORMAL)
     {
         sysfont_9x16_u32(tex_buf->pixels, buffer->width, buffer->height, 0, 0, text, color);
@@ -140,7 +140,7 @@ void nasl_draw_text(Buffer* buffer, int x, int y, uint32_t color, int font_size,
         for (int i = 0; i < tex_buf->width; i++)
         {
             uint32_t src_pixel = nasl_buffer_get_pixel(tex_buf, i, j);
-            if (src_pixel != TRANSPARENT)
+            if (src_pixel != TRANSP)
             {
                 nasl_buffer_set_pixel(buffer, i + x, j + y, src_pixel);
             }
