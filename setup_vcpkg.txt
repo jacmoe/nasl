@@ -14,3 +14,10 @@ rem target_link_libraries(main PRIVATE GLEW::GLEW)
 rem find_package(glfw3 CONFIG REQUIRED)
 rem target_link_libraries(main PRIVATE glfw)
 
+
+
+Linux:
+
+sudo apt install libxinerama-dev libxcursor-dev xorg-dev libglu1-mesa-dev
+
+
