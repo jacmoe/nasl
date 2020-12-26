@@ -20,4 +20,8 @@ project(nasl)
 
 include(CMakeToolsHelpers OPTIONAL)
 
+find_package(GLEW REQUIRED)
+
+include_directories(${GLEW_INCLUDE_DIRS})
+
 add_subdirectory(nasl)
